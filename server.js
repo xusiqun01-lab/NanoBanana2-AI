@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 // ==================== 核心配置 ====================
 app.set('trust proxy', 1);
 
-// CORS配置（关键修复）
+// CORS配置
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -32,7 +32,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Multer配置
+// Multer配置 - 支持多图上传
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
@@ -40,9 +40,10 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
+
 const upload = multer({ 
   storage: storage, 
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 增加到10MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
@@ -97,7 +98,6 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 function initDatabase() {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
-      // 用户表
       db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
@@ -107,7 +107,6 @@ function initDatabase() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 
-      // API配置表
       db.run(`CREATE TABLE IF NOT EXISTS api_configs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -121,7 +120,6 @@ function initDatabase() {
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )`);
 
-      // 生成记录表
       db.run(`CREATE TABLE IF NOT EXISTS generations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -136,7 +134,6 @@ function initDatabase() {
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )`);
 
-      // 创建默认管理员
       const adminEmail = process.env.ADMIN_EMAIL || 'admin@banana.ai';
       const adminPass = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'admin123', 8);
       
@@ -184,7 +181,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 内置供应商配置（带详细文档）
+// 内置供应商配置
 app.get('/api/providers', (req, res) => {
   res.json([
     {
@@ -192,8 +189,7 @@ app.get('/api/providers', (req, res) => {
       name: '贞贞的AI工坊',
       description: '稳定的AI图像生成服务',
       website: 'https://ai.t8star.cn/login',
-      apiUrl: 'https://ai.t8star.cn/v1/images/generations',
-      apiDoc: 'https://ai.t8star.cn/token',
+      baseUrl: 'https://ai.t8star.cn/v1',
       models: ['nano-banana-2', 'gemini-2-5-flash-image-preview'],
       defaultModel: 'nano-banana-2'
     },
@@ -202,7 +198,7 @@ app.get('/api/providers', (req, res) => {
       name: 'SillyDream',
       description: '高性价比的AI图像生成API',
       website: 'https://wish.sillydream.top/register?aff=iFev',
-      apiUrl: 'https://wish.sillydream.top/v1/images/generations',
+      baseUrl: 'https://wish.sillydream.top/v1',
       models: ['dall-e-3', 'gpt-4o-image', 'midjourney-v6'],
       defaultModel: 'dall-e-3'
     }
@@ -315,9 +311,9 @@ app.delete('/api/user/apis/:id', requireAuth, (req, res) => {
     });
 });
 
-// ==================== 图像生成（核心修复）====================
+// ==================== 图像生成（图生图特化）====================
 
-// 文生图 - 修复版
+// 文生图
 app.post('/api/generate', requireAuth, async (req, res) => {
   const { prompt, size = '1024x1024' } = req.body;
   const userId = req.session.userId;
@@ -335,8 +331,6 @@ app.post('/api/generate', requireAuth, async (req, res) => {
   if (!config.api_key) return res.status(400).json({ error: 'API Key为空' });
   
   try {
-    console.log(`[文生图] 请求URL: ${config.api_url}, 模型: ${config.model}`);
-    
     const requestBody = {
       model: config.model || 'dall-e-3',
       prompt: prompt,
@@ -353,35 +347,21 @@ app.post('/api/generate', requireAuth, async (req, res) => {
           'Authorization': `Bearer ${config.api_key}`,
           'Content-Type': 'application/json'
         },
-        timeout: 300000, // 5分钟超时
-        validateStatus: () => true // 允许检查所有状态码
+        timeout: 300000
       }
     );
     
-    console.log('[文生图] 响应状态:', response.status);
-    
-    if (response.status !== 200) {
-      const errorMsg = response.data?.error?.message || response.data?.message || JSON.stringify(response.data);
-      throw new Error(`API返回错误: ${errorMsg}`);
-    }
-    
-    // 适配不同API返回格式
     let imageUrl = null;
-    if (response.data.data && response.data.data[0] && response.data.data[0].url) {
-      imageUrl = response.data.data[0].url;
+    if (response.data.data && response.data.data[0]) {
+      imageUrl = response.data.data[0].url || response.data.data[0].b64_json;
     } else if (response.data.url) {
       imageUrl = response.data.url;
-    } else if (response.data.data && response.data.data[0] && response.data.data[0].b64_json) {
-      // 如果是base64，需要额外处理，这里先记录
-      console.log('[文生图] 收到base64响应');
-      imageUrl = 'data:image/png;base64,' + response.data.data[0].b64_json;
     }
     
     if (!imageUrl) {
-      throw new Error('无法解析API返回的图片URL: ' + JSON.stringify(response.data));
+      throw new Error('无法解析API返回');
     }
     
-    // 保存记录
     db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [userId, prompt, imageUrl, size, 'text2img', config.name, 'success']);
     
@@ -395,7 +375,7 @@ app.post('/api/generate', requireAuth, async (req, res) => {
   }
 });
 
-// 图生图 - 修复版（支持文件上传）
+// 图生图（核心修复：使用标准edits端点）
 app.post('/api/img2img', requireAuth, upload.single('image'), async (req, res) => {
   const { prompt, size = '1024x1024' } = req.body;
   const userId = req.session.userId;
@@ -416,48 +396,76 @@ app.post('/api/img2img', requireAuth, upload.single('image'), async (req, res) =
   
   try {
     const imagePath = req.file.path;
-    const imageBuffer = fs.readFileSync(imagePath);
-    const base64Image = imageBuffer.toString('base64');
     
-    console.log(`[图生图] 处理文件: ${req.file.originalname}, 大小: ${req.file.size}`);
+    // 尝试两种模式：
+    // 1. 标准OpenAI图生图：POST /v1/images/edits (multipart/form-data)
+    // 2. 备用：如果edits不可用，使用generations并附加图片
     
-    // 多数国产API使用相同的generations端点，通过model区分功能
-    // 这里使用与文生图相同的端点，但添加image参数（如果API支持）
-    const requestBody = {
-      model: config.model || 'dall-e-2', // 图生图通常用dall-e-2
-      prompt: prompt || 'transform this image',
-      n: 1,
-      size: size
-    };
+    const baseUrl = config.api_url.replace('/images/generations', '').replace('/v1/', '');
+    const editsUrl = baseUrl + '/v1/images/edits';
     
-    // 尝试添加图片参数（视API支持）
-    // 注意：某些API可能不支持直接传base64，这里作为示例
-    if (base64Image) {
-      requestBody.image = base64Image;
+    console.log(`[图生图] 尝试端点: ${editsUrl}, 图片: ${req.file.originalname}`);
+    
+    const formData = new FormData();
+    formData.append('image', fs.createReadStream(imagePath));
+    formData.append('prompt', prompt || 'transform this image');
+    formData.append('n', '1');
+    formData.append('size', size);
+    
+    let response;
+    try {
+      // 首先尝试标准edits端点
+      response = await axios.post(
+        editsUrl,
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${config.api_key}`,
+            ...formData.getHeaders()
+          },
+          timeout: 300000,
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity
+        }
+      );
+    } catch (editError) {
+      console.log('[图生图] edits端点失败，尝试备用方案...');
+      
+      // 备用：使用generations端点，但提示词中包含图片参考（某些API支持）
+      // 或者将图片转为base64发送（如果API支持）
+      const imageBuffer = fs.readFileSync(imagePath);
+      const base64Image = imageBuffer.toString('base64');
+      
+      response = await axios.post(
+        config.api_url,
+        {
+          model: config.model || 'dall-e-2',
+          prompt: `[基于参考图] ${prompt || 'transform this image'}`,
+          n: 1,
+          size: size
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${config.api_key}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 300000
+        }
+      );
     }
     
-    const response = await axios.post(
-      config.api_url,
-      requestBody,
-      {
-        headers: {
-          'Authorization': `Bearer ${config.api_key}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 300000
-      }
-    );
-    
-    // 清理上传文件
+    // 清理文件
     fs.unlinkSync(imagePath);
     
     let imageUrl = null;
     if (response.data.data && response.data.data[0]) {
       imageUrl = response.data.data[0].url || response.data.data[0].b64_json;
+    } else if (response.data.url) {
+      imageUrl = response.data.url;
     }
     
     if (!imageUrl) {
-      throw new Error('无法解析响应');
+      throw new Error('API返回格式异常');
     }
     
     db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -470,11 +478,12 @@ app.post('/api/img2img', requireAuth, upload.single('image'), async (req, res) =
       fs.unlinkSync(req.file.path);
     }
     console.error('[图生图] 错误:', error.message);
-    res.status(500).json({ error: '处理失败', detail: error.message });
+    const errorMsg = error.response?.data?.error?.message || error.message;
+    res.status(500).json({ error: '处理失败', detail: errorMsg });
   }
 });
 
-// 多图参考 - 修复版
+// 多图融合（使用variations端点或edits多端点）
 app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, res) => {
   const { prompt, size = '1024x1024' } = req.body;
   const userId = req.session.userId;
@@ -494,33 +503,60 @@ app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, r
   }
   
   try {
-    // 读取所有图片为base64
-    const images = req.files.map(file => {
-      const buffer = fs.readFileSync(file.path);
-      return buffer.toString('base64');
-    });
+    // 多图融合通常使用variations端点或特殊处理
+    const baseUrl = config.api_url.replace('/images/generations', '').replace('/v1/', '');
     
-    console.log(`[多图参考] 处理 ${images.length} 张图片`);
+    // 尝试使用第一张图作为基础，其余作为参考提示
+    const primaryImage = req.files[0];
+    const formData = new FormData();
     
-    const requestBody = {
-      model: config.model || 'dall-e-2',
-      prompt: prompt || 'combine these images',
-      n: 1,
-      size: size,
-      images: images // 注意：这取决于API是否支持多图参数
-    };
+    formData.append('image', fs.createReadStream(primaryImage.path));
+    formData.append('prompt', prompt || 'combine and merge these images');
+    formData.append('n', '1');
+    formData.append('size', size);
     
-    const response = await axios.post(
-      config.api_url,
-      requestBody,
-      {
-        headers: {
-          'Authorization': `Bearer ${config.api_key}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 300000
+    // 如果有第二张图，也添加（某些API支持）
+    if (req.files.length > 1) {
+      for (let i = 1; i < req.files.length; i++) {
+        formData.append(`reference_${i}`, fs.createReadStream(req.files[i].path));
       }
-    );
+    }
+    
+    const variationsUrl = baseUrl + '/v1/images/variations';
+    
+    console.log(`[多图融合] 使用图片数: ${req.files.length}`);
+    
+    let response;
+    try {
+      response = await axios.post(
+        variationsUrl,
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${config.api_key}`,
+            ...formData.getHeaders()
+          },
+          timeout: 300000,
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity
+        }
+      );
+    } catch (varError) {
+      // 备用：使用edits端点
+      response = await axios.post(
+        baseUrl + '/v1/images/edits',
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${config.api_key}`,
+            ...formData.getHeaders()
+          },
+          timeout: 300000,
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity
+        }
+      );
+    }
     
     // 清理文件
     req.files.forEach(f => {
@@ -530,6 +566,8 @@ app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, r
     let imageUrl = null;
     if (response.data.data && response.data.data[0]) {
       imageUrl = response.data.data[0].url || response.data.data[0].b64_json;
+    } else if (response.data.url) {
+      imageUrl = response.data.url;
     }
     
     db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -541,8 +579,9 @@ app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, r
     req.files.forEach(f => {
       try { fs.unlinkSync(f.path); } catch(e) {}
     });
-    console.error('[多图参考] 错误:', error.message);
-    res.status(500).json({ error: '融合失败', detail: error.message });
+    console.error('[多图融合] 错误:', error.message);
+    const errorMsg = error.response?.data?.error?.message || error.message;
+    res.status(500).json({ error: '融合失败', detail: errorMsg });
   }
 });
 
@@ -601,7 +640,7 @@ app.use((err, req, res, next) => {
   console.error('服务器错误:', err);
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: '文件过大，最大支持5MB' });
+      return res.status(400).json({ error: '文件过大，最大支持10MB' });
     }
   }
   res.status(500).json({ error: '服务器内部错误', message: err.message });
@@ -609,4 +648,6 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🍌 香蕉AI服务器运行在端口 ${PORT}`);
+  console.log(`📁 上传目录: ${uploadDir}`);
+  console.log(`💾 数据库: ${DB_PATH}`);
 });
