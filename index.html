@@ -1,786 +1,1923 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>香蕉 AI · NanoBanana2</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-  <style>
-    :root {
-      --primary: #f59e0b;
-      --primary-light: #fbbf24;
-      --bg: #0a0a0f;
-      --card: rgba(20, 20, 35, 0.85);
-      --text: #f8f9fa;
-      --text-light: #a0a0c0;
-      --border: rgba(245, 158, 11, 0.25);
-      --glass: rgba(255,255,255,0.06);
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>香蕉 AI - 专业图像生成平台</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #f59e0b;
+            --primary-light: #fbbf24;
+            --primary-dark: #d97706;
+            --primary-glow: rgba(245, 158, 11, 0.3);
+            --bg-dark: #030303;
+            --bg-card: rgba(20, 20, 20, 0.6);
+            --bg-glass: rgba(255, 255, 255, 0.03);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --info: #3b82f6;
+            --radius-sm: 12px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+        }
 
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: linear-gradient(135deg, #0a0a0f 0%, #12121f 100%);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-      line-height: 1.6;
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    /* 全局玻璃摩卡 + 高级感 */
-    .glass {
-      background: var(--glass);
-      backdrop-filter: blur(24px);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      box-shadow: 0 20px 60px -15px rgba(0,0,0,0.6);
-    }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
 
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(10,10,15,0.85);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
-    }
+        /* 背景光效 */
+        .ambient-light {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+            top: -200px;
+            left: -200px;
+            pointer-events: none;
+            z-index: 0;
+            animation: float 20s infinite ease-in-out;
+        }
 
-    .nav {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 1.25rem 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+        .ambient-light:nth-child(2) {
+            top: auto;
+            bottom: -200px;
+            left: auto;
+            right: -200px;
+            animation-delay: -10s;
+        }
 
-    .logo {
-      font-size: 2.1rem;
-      font-weight: 900;
-      background: linear-gradient(90deg, #f59e0b, #fbbf24);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      letter-spacing: -1px;
-    }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, 50px) scale(1.1); }
+        }
 
-    .logo i { font-size: 2.4rem; }
+        /* 登录页 - 玻璃态卡片 */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+            background: radial-gradient(ellipse at top, rgba(245, 158, 11, 0.05), transparent 50%);
+        }
 
-    .nav-links {
-      display: flex;
-      gap: 2.5rem;
-      font-weight: 500;
-    }
+        .auth-card {
+            width: 100%;
+            max-width: 480px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-xl);
+            padding: 48px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                inset 0 1px 1px rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
 
-    .nav-links a {
-      color: var(--text-light);
-      text-decoration: none;
-      transition: color .3s;
-    }
+        .auth-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.3), transparent);
+        }
 
-    .nav-links a:hover, .nav-links a.active {
-      color: var(--primary);
-    }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
 
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
+        .logo-container {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 
+                0 0 40px var(--primary-glow),
+                inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            position: relative;
+        }
 
-    .avatar {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, var(--primary), #d97706);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 1.1rem;
-      color: #000;
-    }
+        .logo-container::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, var(--primary-light), transparent, var(--primary));
+            z-index: -1;
+            opacity: 0.5;
+        }
 
-    /* 主内容区 - 极简高级布局 */
-    .main {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 3rem 2rem;
-      display: grid;
-      grid-template-columns: 280px 1fr;
-      gap: 3rem;
-    }
+        .auth-header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, var(--primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
 
-    /* 侧边栏 */
-    .sidebar {
-      position: sticky;
-      top: 100px;
-      height: fit-content;
-    }
+        .auth-header p {
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 400;
+        }
 
-    .sidebar-card {
-      padding: 2rem;
-      margin-bottom: 2rem;
-    }
+        .form-group {
+            margin-bottom: 24px;
+        }
 
-    .sidebar-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-      margin-bottom: 1.5rem;
-      color: var(--primary);
-      letter-spacing: 0.5px;
-    }
+        .form-label {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
 
-    .menu-item {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 1rem 1.25rem;
-      border-radius: 14px;
-      margin-bottom: 6px;
-      color: var(--text-light);
-      cursor: pointer;
-      transition: all .3s;
-    }
+        .input-wrapper {
+            position: relative;
+        }
 
-    .menu-item:hover, .menu-item.active {
-      background: rgba(245,158,11,0.1);
-      color: var(--primary);
-    }
+        .form-input {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            outline: none;
+        }
 
-    /* 内容区 */
-    .content {
-      min-height: 80vh;
-    }
+        .form-input:hover {
+            border-color: rgba(245, 158, 11, 0.3);
+        }
 
-    .hero {
-      text-align: center;
-      padding: 6rem 2rem 4rem;
-      background: linear-gradient(180deg, rgba(245,158,11,0.08) 0%, transparent 70%);
-      border-radius: 28px;
-      margin-bottom: 3rem;
-    }
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+            background: rgba(0, 0, 0, 0.4);
+        }
 
-    .hero h1 {
-      font-size: 3.8rem;
-      font-weight: 900;
-      line-height: 1.1;
-      margin-bottom: 1rem;
-      background: linear-gradient(90deg, #fff, var(--primary-light));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+        .input-icon {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 16px;
+        }
 
-    .hero p {
-      font-size: 1.35rem;
-      color: var(--text-light);
-      max-width: 620px;
-      margin: 0 auto 2.5rem;
-    }
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+            color: #000;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+        }
 
-    /* 生成卡片 */
-    .generate-card {
-      padding: 3rem;
-    }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(245, 158, 11, 0.4);
+        }
 
-    .tabs {
-      display: flex;
-      background: rgba(255,255,255,0.05);
-      border-radius: 16px;
-      padding: 6px;
-      width: fit-content;
-      margin-bottom: 2rem;
-    }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
 
-    .tab {
-      padding: 12px 28px;
-      border-radius: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all .3s;
-    }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
 
-    .tab.active {
-      background: var(--primary);
-      color: #000;
-      box-shadow: 0 4px 15px rgba(245,158,11,0.4);
-    }
+        .auth-switch {
+            text-align: center;
+            margin-top: 28px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
 
-    .prompt-box {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 1.8rem;
-      margin-bottom: 2rem;
-    }
+        .auth-switch a {
+            color: var(--primary-light);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 4px;
+            transition: color 0.2s;
+        }
 
-    textarea {
-      width: 100%;
-      min-height: 160px;
-      background: transparent;
-      border: none;
-      outline: none;
-      color: var(--text);
-      font-size: 1.05rem;
-      resize: none;
-    }
+        .auth-switch a:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
 
-    .size-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-      gap: 1rem;
-    }
+        .alert {
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+        }
 
-    .size-btn {
-      padding: 1rem;
-      text-align: center;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      cursor: pointer;
-      transition: all .3s;
-    }
+        .alert.show { display: flex; }
+        .alert-success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: var(--success); }
+        .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .alert-info { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); color: var(--info); }
 
-    .size-btn.active {
-      background: var(--primary);
-      color: #000;
-      border-color: var(--primary);
-      transform: scale(1.03);
-    }
+        /* 主应用布局 */
+        .app-container {
+            display: none;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
 
-    .upload-zone {
-      border: 2px dashed var(--border);
-      border-radius: 18px;
-      padding: 4rem 2rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all .3s;
-    }
+        /* 侧边栏 - 玻璃态 */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-glass);
+            padding: 32px 20px;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
 
-    .upload-zone:hover {
-      border-color: var(--primary);
-      background: rgba(245,158,11,0.05);
-    }
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 12px 32px;
+            border-bottom: 1px solid var(--border-glass);
+            margin-bottom: 32px;
+        }
 
-    .preview-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-      gap: 1rem;
-      margin-top: 1.5rem;
-    }
+        .sidebar-logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
 
-    .preview-item {
-      position: relative;
-      border-radius: 12px;
-      overflow: hidden;
-    }
+        .sidebar-brand h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+        }
 
-    .preview-item img {
-      width: 100%;
-      height: 110px;
-      object-fit: cover;
-    }
+        .sidebar-brand span {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
 
-    .remove-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: rgba(0,0,0,0.7);
-      color: white;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      cursor: pointer;
-    }
+        .nav-section {
+            margin-bottom: 32px;
+        }
 
-    .generate-btn {
-      width: 100%;
-      padding: 1.1rem;
-      background: linear-gradient(90deg, var(--primary-light), var(--primary));
-      color: #000;
-      font-size: 1.15rem;
-      font-weight: 700;
-      border: none;
-      border-radius: 16px;
-      cursor: pointer;
-      margin-top: 2rem;
-      transition: all .4s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-    }
+        .nav-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding: 0 12px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
 
-    .generate-btn:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 20px 40px rgba(245,158,11,0.35);
-    }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            margin: 4px 0;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 500;
+            border: 1px solid transparent;
+        }
 
-    /* 结果区 */
-    .result-card {
-      margin-top: 3rem;
-      padding: 2rem;
-      text-align: center;
-    }
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+            transform: translateX(4px);
+        }
 
-    .result-card img {
-      max-width: 100%;
-      border-radius: 20px;
-      box-shadow: 0 30px 60px -20px rgba(0,0,0,0.7);
-      margin-bottom: 1.5rem;
-    }
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
+            color: var(--primary-light);
+            border-color: rgba(245, 158, 11, 0.2);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.1);
+        }
 
-    /* 历史记录 */
-    .history-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 2rem;
-    }
+        .nav-item i {
+            width: 24px;
+            text-align: center;
+            font-size: 18px;
+        }
 
-    .history-item {
-      background: var(--card);
-      border-radius: 18px;
-      overflow: hidden;
-      transition: transform .3s;
-    }
+        /* 主内容区 */
+        .main-content {
+            margin-left: 280px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
-    .history-item:hover {
-      transform: translateY(-8px);
-    }
+        .top-header {
+            height: 80px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-glass);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
 
-    .history-item img {
-      width: 100%;
-      height: 240px;
-      object-fit: cover;
-    }
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
 
-    .history-info {
-      padding: 1.25rem;
-    }
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
 
-    /* Toast */
-    .toast {
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 1rem 2rem;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.85);
-      color: white;
-      z-index: 9999;
-      opacity: 0;
-      transition: all .4s cubic-bezier(0.34,1.56,0.64,1);
-      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-    }
+        .user-info {
+            text-align: right;
+        }
 
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(-20px); }
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
 
-    .toast.success { background: #10b981; }
-    .toast.error { background: #ef4444; }
-  </style>
+        .user-role {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: capitalize;
+        }
+
+        .btn-logout {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--border-glass);
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .content-area {
+            flex: 1;
+            padding: 40px;
+            max-width: 1600px;
+        }
+
+        /* 首页 Hero */
+        .hero-section {
+            text-align: center;
+            padding: 80px 20px;
+            margin-bottom: 48px;
+            position: relative;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 100px;
+            font-size: 13px;
+            color: var(--primary-light);
+            margin-bottom: 24px;
+            font-weight: 500;
+        }
+
+        .hero-title {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #fff 0%, var(--primary-light) 50%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-large {
+            padding: 18px 36px;
+            font-size: 16px;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+        }
+
+        .btn-glow {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            color: #000;
+            box-shadow: 0 4px 30px var(--primary-glow);
+        }
+
+        .btn-glow:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 40px var(--primary-glow);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-glass);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        /* 功能卡片网格 */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-top: 48px;
+        }
+
+        .feature-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(245, 158, 11, 0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--primary-light);
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover .feature-icon {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px var(--primary-glow);
+        }
+
+        .feature-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .feature-desc {
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        /* 生成页面 */
+        .generate-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 32px;
+            max-width: 1400px;
+        }
+
+        .input-panel {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+        }
+
+        .size-selector {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .size-option {
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            min-width: 100px;
+        }
+
+        .size-option:hover {
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .size-option.active {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1));
+            border-color: var(--primary);
+            color: var(--primary-light);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
+        }
+
+        .size-label {
+            display: block;
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 2px;
+        }
+
+        .size-value {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            min-height: 140px;
+            padding: 16px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .prompt-textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .upload-icon-large {
+            font-size: 48px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 16px;
+            margin-top: 20px;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            color: #000;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px var(--primary-glow);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result-panel {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            min-height: 600px;
+        }
+
+        .result-placeholder {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .result-image {
+            width: 100%;
+            border-radius: var(--radius-md);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(245, 158, 11, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* API设置页 */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+        }
+
+        .setting-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            backdrop-filter: blur(10px);
+        }
+
+        .setting-card h3 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .api-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            transition: all 0.3s;
+        }
+
+        .api-item:hover {
+            border-color: rgba(245, 158, 11, 0.3);
+            transform: translateX(4px);
+        }
+
+        .api-item.active {
+            border-color: var(--primary);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-primary {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--primary-light);
+        }
+
+        /* 图库 */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .gallery-item {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: all 0.4s;
+            position: relative;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .gallery-img {
+            width: 100%;
+            height: 280px;
+            object-fit: cover;
+            background: #000;
+        }
+
+        .gallery-info {
+            padding: 20px;
+        }
+
+        .gallery-prompt {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .gallery-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* 管理员 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), transparent);
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--primary-light);
+            margin-bottom: 8px;
+            letter-spacing: -1px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        /* 隐藏类 */
+        .hidden { display: none !important; }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .generate-layout {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .auth-card {
+                padding: 32px 24px;
+            }
+            .hero-title {
+                font-size: 36px;
+            }
+            .content-area {
+                padding: 20px;
+            }
+        }
+    </style>
 </head>
 <body>
+    <!-- 环境光效 -->
+    <div class="ambient-light"></div>
+    <div class="ambient-light"></div>
 
-<header>
-  <div class="nav">
-    <div class="logo">
-      <i class="fas fa-banana"></i>
-      香蕉 AI
-    </div>
-    <div class="nav-links">
-      <a href="#" class="active">创作</a>
-      <a href="#" onclick="showSection('history')">历史</a>
-    </div>
-    <div class="user-info" id="userArea" style="display:none;">
-      <div class="avatar" id="avatar">A</div>
-      <div>
-        <div style="font-weight:600;" id="userEmail">user@banana.ai</div>
-        <div style="font-size:0.85rem;color:var(--text-light);">已登录</div>
-      </div>
-      <button onclick="logout()" style="margin-left:1.5rem;background:transparent;border:1px solid #ef4444;color:#ef4444;padding:8px 20px;border-radius:999px;cursor:pointer;">退出</button>
-    </div>
-    <div id="guestArea">
-      <button onclick="showLoginModal()" style="margin-right:12px;background:transparent;border:1px solid var(--primary);color:var(--primary);padding:10px 24px;border-radius:999px;cursor:pointer;">登录</button>
-      <button onclick="showRegisterModal()" style="background:var(--primary);color:#000;padding:10px 28px;border-radius:999px;border:none;font-weight:700;cursor:pointer;">注册</button>
-    </div>
-  </div>
-</header>
+    <!-- 认证页面 -->
+    <div id="authPage" class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="logo-container">🍌</div>
+                <h1>香蕉 AI</h1>
+                <p>专业图像生成平台</p>
+            </div>
 
-<div class="main">
-  <!-- 侧边栏 -->
-  <div class="sidebar">
-    <div class="glass sidebar-card">
-      <div class="sidebar-title"><i class="fas fa-magic"></i> 创作中心</div>
-      <div onclick="switchTab(0)" class="menu-item active" id="tab0"><i class="fas fa-text-height"></i> 文生图</div>
-      <div onclick="switchTab(1)" class="menu-item" id="tab1"><i class="fas fa-image"></i> 图生图</div>
-      <div onclick="switchTab(2)" class="menu-item" id="tab2"><i class="fas fa-images"></i> 多图参考</div>
-    </div>
-  </div>
+            <!-- 登录表单 -->
+            <div id="loginForm">
+                <div id="loginAlert" class="alert"></div>
+                <div class="form-group">
+                    <label class="form-label">邮箱地址</label>
+                    <div class="input-wrapper">
+                        <input type="email" id="loginEmail" class="form-input" placeholder="name@example.com">
+                        <i class="fas fa-envelope input-icon"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="loginPassword" class="form-input" placeholder="••••••••">
+                        <i class="fas fa-lock input-icon"></i>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="handleLogin()">
+                    <i class="fas fa-sign-in-alt"></i> 登录
+                </button>
+                <div class="auth-switch">
+                    还没有账户？<a onclick="toggleAuth('register')">立即注册</a>
+                </div>
+            </div>
 
-  <!-- 主内容 -->
-  <div class="content">
-    <!-- 英雄区 -->
-    <div class="hero glass">
-      <h1>让创意<br>瞬间成画</h1>
-      <p>调用顶级香蕉 API（nano-banana-2）<br>专业级图像生成 · 零门槛使用</p>
-    </div>
-
-    <!-- 生成卡片 -->
-    <div class="glass generate-card">
-      <div class="tabs">
-        <div class="tab active" id="tabText">文生图</div>
-        <div class="tab" id="tabImg2Img">图生图</div>
-        <div class="tab" id="tabMulti">多图参考</div>
-      </div>
-
-      <form id="generateForm">
-        <div class="prompt-box">
-          <textarea id="prompt" placeholder="一只穿着宇航服的香蕉在赛博城市夜空飞行，极致细节，电影级光影，8K..." required></textarea>
+            <!-- 注册表单（已移除验证码） -->
+            <div id="registerForm" class="hidden">
+                <div id="registerAlert" class="alert"></div>
+                <div class="form-group">
+                    <label class="form-label">邮箱地址</label>
+                    <div class="input-wrapper">
+                        <input type="email" id="regEmail" class="form-input" placeholder="name@example.com">
+                        <i class="fas fa-envelope input-icon"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">设置密码</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="regPassword" class="form-input" placeholder="至少6位字符">
+                        <i class="fas fa-lock input-icon"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">确认密码</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="regPassword2" class="form-input" placeholder="再次输入密码">
+                        <i class="fas fa-lock input-icon"></i>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="handleRegister()">
+                    <i class="fas fa-user-plus"></i> 创建账户
+                </button>
+                <div class="auth-switch">
+                    已有账户？<a onclick="toggleAuth('login')">立即登录</a>
+                </div>
+            </div>
         </div>
-
-        <label style="display:block;margin:1.5rem 0 0.8rem;color:var(--text-light);">尺寸选择</label>
-        <div class="size-grid" id="sizeGrid">
-          <!-- JS 动态填充 -->
-        </div>
-
-        <!-- 上传区域 -->
-        <div id="uploadArea" style="display:none;margin-top:2rem;">
-          <label style="display:block;margin-bottom:0.8rem;color:var(--text-light);">上传参考图（最多 4 张）</label>
-          <div id="dropZone" class="upload-zone glass">
-            <i class="fas fa-cloud-upload-alt" style="font-size:3.5rem;margin-bottom:1rem;color:var(--text-light);"></i>
-            <p>点击或拖拽图片到此处</p>
-            <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
-          </div>
-          <div id="previewContainer" class="preview-grid"></div>
-        </div>
-
-        <button type="submit" class="generate-btn" id="generateBtn">
-          <i class="fas fa-sparkles"></i>
-          开始生成
-        </button>
-      </form>
-
-      <!-- 生成结果 -->
-      <div id="resultArea" class="result-card hidden">
-        <img id="resultImg" alt="生成结果">
-        <p id="resultPrompt" style="margin-top:1rem;color:var(--text-light);font-size:1.05rem;"></p>
-      </div>
     </div>
 
-    <!-- 历史记录 -->
-    <div id="historySection" style="display:none;">
-      <h2 style="margin:3rem 0 1.5rem;font-size:1.8rem;">创作历史</h2>
-      <div id="historyGrid" class="history-grid"></div>
+    <!-- 主应用 -->
+    <div id="appContainer" class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">🍌</div>
+                <div class="sidebar-brand">
+                    <h2>香蕉 AI</h2>
+                    <span>专业创作</span>
+                </div>
+            </div>
+
+            <nav>
+                <div class="nav-section">
+                    <div class="nav-section-title">创作</div>
+                    <div class="nav-item active" onclick="navigate('home')">
+                        <i class="fas fa-home"></i>
+                        <span>首页</span>
+                    </div>
+                    <div class="nav-item" onclick="navigate('text2img')">
+                        <i class="fas fa-pen-nib"></i>
+                        <span>文生图</span>
+                    </div>
+                    <div class="nav-item" onclick="navigate('img2img')">
+                        <i class="fas fa-image"></i>
+                        <span>图生图</span>
+                    </div>
+                    <div class="nav-item" onclick="navigate('multi')">
+                        <i class="fas fa-layer-group"></i>
+                        <span>多图融合</span>
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">管理</div>
+                    <div class="nav-item" onclick="navigate('gallery')">
+                        <i class="fas fa-history"></i>
+                        <span>创作历史</span>
+                    </div>
+                    <div class="nav-item" onclick="navigate('settings')">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>API 设置</span>
+                    </div>
+                    <div class="nav-item admin-only hidden" onclick="navigate('admin')">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>管理后台</span>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <header class="top-header">
+                <h1 class="page-title" id="pageTitle">首页</h1>
+                <div class="user-menu">
+                    <div class="user-info">
+                        <div class="user-name" id="userName">加载中...</div>
+                        <div class="user-role" id="userRole">用户</div>
+                    </div>
+                    <button class="btn-logout" onclick="handleLogout()">
+                        <i class="fas fa-sign-out-alt"></i> 退出
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-area" id="contentArea">
+                <!-- 首页 -->
+                <div id="page-home" class="page">
+                    <div class="hero-section">
+                        <div class="hero-badge">
+                            <i class="fas fa-sparkles"></i> AI 驱动的图像生成
+                        </div>
+                        <h2 class="hero-title">释放你的创造力</h2>
+                        <p class="hero-subtitle">
+                            配置你的专属 API，开始专业级 AI 图像创作之旅。
+                            支持文生图、图生图、多图融合等多种创作模式。
+                        </p>
+                        <div class="hero-actions">
+                            <button class="btn-large btn-glow" onclick="navigate('text2img')">
+                                <i class="fas fa-wand-magic-sparkles"></i> 开始创作
+                            </button>
+                            <button class="btn-large btn-outline" onclick="navigate('settings')">
+                                <i class="fas fa-cog"></i> 配置 API
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="features-grid">
+                        <div class="feature-card" onclick="navigate('text2img')">
+                            <div class="feature-icon">
+                                <i class="fas fa-pen-nib"></i>
+                            </div>
+                            <h3 class="feature-title">文生图</h3>
+                            <p class="feature-desc">输入文字描述，AI 为你生成精美图像。支持 1K/2K/4K 分辨率输出。</p>
+                        </div>
+                        <div class="feature-card" onclick="navigate('img2img')">
+                            <div class="feature-icon">
+                                <i class="fas fa-image"></i>
+                            </div>
+                            <h3 class="feature-title">图生图</h3>
+                            <p class="feature-desc">上传参考图片，通过文字描述引导 AI 进行风格转换或细节重构。</p>
+                        </div>
+                        <div class="feature-card" onclick="navigate('multi')">
+                            <div class="feature-icon">
+                                <i class="fas fa-layer-group"></i>
+                            </div>
+                            <h3 class="feature-title">多图融合</h3>
+                            <p class="feature-desc">融合多张图片特征，创造独特的混合风格作品。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 文生图 -->
+                <div id="page-text2img" class="page hidden">
+                    <div class="generate-layout">
+                        <div class="input-panel">
+                            <div class="panel-header">
+                                <i class="fas fa-sliders-h"></i> 参数设置
+                            </div>
+                            
+                            <label class="form-label">图像尺寸</label>
+                            <div class="size-selector" id="t2iSizes">
+                                <div class="size-option active" data-size="1024x1024" onclick="selectSize('t2i', this)">
+                                    <span class="size-label">1:1</span>
+                                    <span class="size-value">1024²</span>
+                                </div>
+                                <div class="size-option" data-size="1792x1024" onclick="selectSize('t2i', this)">
+                                    <span class="size-label">16:9</span>
+                                    <span class="size-value">1792×1024</span>
+                                </div>
+                                <div class="size-option" data-size="1024x1792" onclick="selectSize('t2i', this)">
+                                    <span class="size-label">9:16</span>
+                                    <span class="size-value">1024×1792</span>
+                                </div>
+                                <div class="size-option" data-size="2048x2048" onclick="selectSize('t2i', this)">
+                                    <span class="size-label">2K</span>
+                                    <span class="size-value">2048²</span>
+                                </div>
+                                <div class="size-option" data-size="4096x4096" onclick="selectSize('t2i', this)">
+                                    <span class="size-label">4K</span>
+                                    <span class="size-value">4096²</span>
+                                </div>
+                            </div>
+
+                            <label class="form-label">创意描述</label>
+                            <textarea 
+                                id="t2iPrompt" 
+                                class="prompt-textarea" 
+                                placeholder="描述你想要的画面，例如：一只戴着墨镜的橘猫，赛博朋克风格，霓虹灯光，高清细节..."
+                            ></textarea>
+
+                            <button class="generate-btn" id="t2iBtn" onclick="generateText2Img()">
+                                <i class="fas fa-wand-magic-sparkles"></i> 生成图像
+                            </button>
+                        </div>
+
+                        <div class="result-panel">
+                            <div class="panel-header">
+                                <i class="fas fa-eye"></i> 预览
+                            </div>
+                            <div id="t2iResult" class="result-placeholder">
+                                <i class="fas fa-image" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
+                                <p>生成的图像将在这里预览</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 图生图 -->
+                <div id="page-img2img" class="page hidden">
+                    <div class="generate-layout">
+                        <div class="input-panel">
+                            <div class="panel-header">
+                                <i class="fas fa-sliders-h"></i> 参数设置
+                            </div>
+
+                            <label class="form-label">图像尺寸</label>
+                            <div class="size-selector" id="i2iSizes">
+                                <div class="size-option active" data-size="1024x1024" onclick="selectSize('i2i', this)">
+                                    <span class="size-label">标准</span>
+                                    <span class="size-value">1024²</span>
+                                </div>
+                                <div class="size-option" data-size="2048x2048" onclick="selectSize('i2i', this)">
+                                    <span class="size-label">2K</span>
+                                    <span class="size-value">2048²</span>
+                                </div>
+                            </div>
+
+                            <label class="form-label">上传图片</label>
+                            <div class="upload-zone" onclick="document.getElementById('i2iFile').click()">
+                                <div class="upload-icon-large">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                                <p style="color: var(--text-secondary); margin-bottom: 8px;">点击或拖拽上传图片</p>
+                                <p style="font-size: 13px; color: var(--text-muted);">支持 JPG、PNG，最大 5MB</p>
+                                <input type="file" id="i2iFile" class="hidden" accept="image/*" onchange="handleI2IFile(event)">
+                            </div>
+                            <div id="i2iPreview" style="margin-top: 16px;"></div>
+
+                            <label class="form-label" style="margin-top: 20px;">修改描述</label>
+                            <textarea 
+                                id="i2iPrompt" 
+                                class="prompt-textarea" 
+                                placeholder="描述如何修改这张图片，例如：转换成赛博朋克风格，添加霓虹光效..."
+                            ></textarea>
+
+                            <button class="generate-btn" id="i2iBtn" onclick="generateImg2Img()">
+                                <i class="fas fa-wand-magic-sparkles"></i> 开始转换
+                            </button>
+                        </div>
+
+                        <div class="result-panel">
+                            <div class="panel-header">
+                                <i class="fas fa-eye"></i> 预览
+                            </div>
+                            <div id="i2iResult" class="result-placeholder">
+                                <i class="fas fa-image" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
+                                <p>处理后的图像将在这里预览</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 多图融合 -->
+                <div id="page-multi" class="page hidden">
+                    <div class="generate-layout">
+                        <div class="input-panel">
+                            <div class="panel-header">
+                                <i class="fas fa-sliders-h"></i> 参数设置
+                            </div>
+
+                            <label class="form-label">图像尺寸</label>
+                            <div class="size-selector" id="multiSizes">
+                                <div class="size-option active" data-size="1024x1024" onclick="selectSize('multi', this)">
+                                    <span class="size-label">标准</span>
+                                    <span class="size-value">1024²</span>
+                                </div>
+                                <div class="size-option" data-size="2048x2048" onclick="selectSize('multi', this)">
+                                    <span class="size-label">2K</span>
+                                    <span class="size-value">2048²</span>
+                                </div>
+                            </div>
+
+                            <label class="form-label">上传参考图（1-4张）</label>
+                            <div class="upload-zone" onclick="document.getElementById('multiFiles').click()">
+                                <div class="upload-icon-large">
+                                    <i class="fas fa-images"></i>
+                                </div>
+                                <p style="color: var(--text-secondary); margin-bottom: 8px;">选择多张图片进行融合</p>
+                                <p style="font-size: 13px; color: var(--text-muted);">支持 1-4 张图片</p>
+                                <input type="file" id="multiFiles" class="hidden" accept="image/*" multiple onchange="handleMultiFiles(event)">
+                            </div>
+                            <div id="multiPreview" style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;"></div>
+
+                            <label class="form-label" style="margin-top: 20px;">融合描述</label>
+                            <textarea 
+                                id="multiPrompt" 
+                                class="prompt-textarea" 
+                                placeholder="描述融合效果，例如：结合图1的色调和图2的构图，生成..."
+                            ></textarea>
+
+                            <button class="generate-btn" id="multiBtn" onclick="generateMulti()">
+                                <i class="fas fa-layer-group"></i> 融合生成
+                            </button>
+                        </div>
+
+                        <div class="result-panel">
+                            <div class="panel-header">
+                                <i class="fas fa-eye"></i> 预览
+                            </div>
+                            <div id="multiResult" class="result-placeholder">
+                                <i class="fas fa-image" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
+                                <p>融合结果将在这里预览</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API设置 -->
+                <div id="page-settings" class="page hidden">
+                    <div class="settings-grid">
+                        <div class="setting-card">
+                            <h3><i class="fas fa-plus-circle" style="color: var(--primary);"></i> 添加配置</h3>
+                            <div style="margin-top: 20px;">
+                                <div class="form-group">
+                                    <label class="form-label">配置名称</label>
+                                    <input type="text" id="apiName" class="form-input" placeholder="例如：我的OpenAI">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">API URL</label>
+                                    <input type="text" id="apiUrl" class="form-input" placeholder="https://api...">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">API Key</label>
+                                    <input type="password" id="apiKey" class="form-input" placeholder="sk-...">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">模型</label>
+                                    <input type="text" id="apiModel" class="form-input" placeholder="dall-e-3">
+                                </div>
+                                <button class="btn-primary" onclick="saveApiConfig()" style="margin-top: 10px;">
+                                    保存配置
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="setting-card" style="grid-column: span 2;">
+                            <h3><i class="fas fa-list" style="color: var(--primary);"></i> 我的配置</h3>
+                            <div id="apiList" style="margin-top: 20px;">
+                                <p style="color: var(--text-muted); text-align: center; padding: 40px;">暂无配置</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 历史记录 -->
+                <div id="page-gallery" class="page hidden">
+                    <div class="gallery-grid" id="galleryGrid">
+                        <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 16px;"></i>
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 管理员 -->
+                <div id="page-admin" class="page hidden">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="statUsers">-</div>
+                            <div class="stat-label">总用户数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statGens">-</div>
+                            <div class="stat-label">总生成数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statToday">-</div>
+                            <div class="stat-label">今日生成</div>
+                        </div>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3>用户列表</h3>
+                        <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border-glass);">
+                                    <th style="text-align: left; padding: 12px; color: var(--text-secondary); font-weight: 500;">邮箱</th>
+                                    <th style="text-align: left; padding: 12px; color: var(--text-secondary); font-weight: 500;">角色</th>
+                                    <th style="text-align: left; padding: 12px; color: var(--text-secondary); font-weight: 500;">生成次数</th>
+                                    <th style="text-align: left; padding: 12px; color: var(--text-secondary); font-weight: 500;">注册时间</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminUsersList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
-  </div>
-</div>
 
-<!-- 登录 / 注册模态 -->
-<div id="authModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:9999;">
-  <div class="glass" style="width:100%;max-width:420px;padding:3rem;border-radius:24px;position:relative;">
-    <span onclick="closeModal()" style="position:absolute;top:1.5rem;right:1.5rem;font-size:2rem;cursor:pointer;color:var(--text-light);">×</span>
-    <h2 id="modalTitle" style="text-align:center;margin-bottom:2rem;font-size:2rem;">登录账号</h2>
-    
-    <form id="authForm">
-      <input type="email" id="email" placeholder="邮箱地址" required style="margin-bottom:1rem;">
-      <input type="password" id="password" placeholder="密码" required>
-      <button type="submit" id="authSubmitBtn" style="margin-top:1.5rem;width:100%;padding:1rem;background:var(--primary);color:#000;font-weight:700;border:none;border-radius:14px;cursor:pointer;">登录</button>
-    </form>
-    
-    <p style="text-align:center;margin-top:1.8rem;color:var(--text-light);">
-      <span id="switchLink">还没有账号？<a href="#" onclick="toggleAuthMode();return false;" style="color:var(--primary);">立即注册</a></span>
-    </p>
-  </div>
-</div>
+    <script>
+        // 状态管理
+        let currentUser = null;
+        let currentPage = 'home';
+        let selectedSizes = { t2i: '1024x1024', i2i: '1024x1024', multi: '1024x1024' };
+        let i2iFile = null;
+        let multiFiles = [];
 
-<!-- Toast -->
-<div id="toast" class="toast"></div>
+        // 初始化
+        window.onload = () => {
+            checkAuth();
+        };
 
-<script>
-  // ==================== 全局变量 ====================
-  let currentUser = null;
-  let currentTab = 0;           // 0:文生图 1:图生图 2:多图参考
-  let uploadedFiles = [];
+        // 检查登录状态（关键修复：携带cookie）
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/user', {
+                    credentials: 'include'  // 确保携带session cookie
+                });
+                if (res.ok) {
+                    currentUser = await res.json();
+                    showApp();
+                    updateUI();
+                } else {
+                    showAuth();
+                }
+            } catch (e) {
+                showAuth();
+            }
+        }
 
-  const API = {
-    register: '/api/auth/register',
-    login: '/api/auth/login',
-    logout: '/api/logout',
-    user: '/api/user',
-    providers: '/api/providers',
-    generate: '/api/generate',
-    img2img: '/api/img2img',
-    multiRef: '/api/multi-ref',
-    history: '/api/history'
-  };
+        // 显示/隐藏页面
+        function showAuth() {
+            document.getElementById('authPage').style.display = 'flex';
+            document.getElementById('appContainer').style.display = 'none';
+        }
 
-  // ==================== Toast ====================
-  function showToast(msg, type = 'success') {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = `toast show ${type}`;
-    setTimeout(() => t.classList.remove('show'), 3800);
-  }
+        function showApp() {
+            document.getElementById('authPage').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'flex';
+        }
 
-  // ==================== 模态 ====================
-  let isLoginMode = true;
-  function showModal(isLogin) {
-    isLoginMode = isLogin;
-    document.getElementById('modalTitle').textContent = isLogin ? '登录账号' : '创建账号';
-    document.getElementById('authSubmitBtn').textContent = isLogin ? '登录' : '注册';
-    document.getElementById('authModal').style.display = 'flex';
-  }
-  function closeModal() {
-    document.getElementById('authModal').style.display = 'none';
-  }
-  function toggleAuthMode() {
-    showModal(!isLoginMode);
-  }
+        function updateUI() {
+            if (!currentUser) return;
+            document.getElementById('userName').textContent = currentUser.email;
+            document.getElementById('userRole').textContent = currentUser.role === 'admin' ? '管理员' : '用户';
+            
+            if (currentUser.role === 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+            }
+        }
 
-  // ==================== 认证 ====================
-  async function authSubmit(e) {
-    e.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
+        // 切换登录/注册
+        function toggleAuth(mode) {
+            document.getElementById('loginForm').classList.toggle('hidden', mode !== 'login');
+            document.getElementById('registerForm').classList.toggle('hidden', mode !== 'register');
+            clearAlerts();
+        }
 
-    const endpoint = isLoginMode ? API.login : API.register;
+        function clearAlerts() {
+            document.querySelectorAll('.alert').forEach(el => {
+                el.classList.remove('show', 'alert-success', 'alert-error', 'alert-info');
+                el.textContent = '';
+            });
+        }
 
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
+        function showAlert(id, type, message) {
+            const el = document.getElementById(id);
+            el.className = `alert alert-${type} show`;
+            el.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
+        }
 
-      if (!res.ok) throw new Error(data.error || '操作失败');
+        // 登录（关键修复：携带cookie）
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
 
-      showToast(isLoginMode ? '登录成功' : '注册成功！请登录');
-      closeModal();
+            if (!email || !password) {
+                return showAlert('loginAlert', 'error', '请输入邮箱和密码');
+            }
 
-      if (isLoginMode) {
-        currentUser = { email };
-        document.getElementById('guestArea').style.display = 'none';
-        document.getElementById('userArea').style.display = 'flex';
-        document.getElementById('userEmail').textContent = email;
-        loadHistory();
-      }
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  }
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',  // 关键：携带cookie
+                    body: JSON.stringify({ email, password })
+                });
 
-  async function logout() {
-    await fetch(API.logout);
-    currentUser = null;
-    document.getElementById('guestArea').style.display = 'block';
-    document.getElementById('userArea').style.display = 'none';
-    showToast('已退出登录');
-  }
+                const data = await res.json();
+                
+                if (data.success) {
+                    currentUser = { email, role: data.role, id: data.userId };
+                    showApp();
+                    updateUI();
+                    navigate('home');
+                } else {
+                    showAlert('loginAlert', 'error', data.error || '登录失败');
+                }
+            } catch (e) {
+                showAlert('loginAlert', 'error', '网络错误，请重试');
+            }
+        }
 
-  // ==================== Tab 切换 ====================
-  function switchTab(n) {
-    currentTab = n;
-    document.querySelectorAll('.menu-item').forEach((el,i) => el.classList.toggle('active', i===n));
-    document.getElementById('uploadArea').style.display = (n === 0) ? 'none' : 'block';
-  }
+        // 注册（已移除验证码，关键修复：携带cookie）
+        async function handleRegister() {
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const password2 = document.getElementById('regPassword2').value;
 
-  // ==================== 生成 ====================
-  document.getElementById('generateForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    if (!currentUser) {
-      showModal(true);
-      return;
-    }
+            if (!email || !password) {
+                return showAlert('registerAlert', 'error', '请填写完整信息');
+            }
+            if (password.length < 6) {
+                return showAlert('registerAlert', 'error', '密码至少需要6位');
+            }
+            if (password !== password2) {
+                return showAlert('registerAlert', 'error', '两次密码输入不一致');
+            }
 
-    const btn = document.getElementById('generateBtn');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '生成中 <i class="fas fa-spinner fa-spin"></i>';
-    btn.disabled = true;
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',  // 关键：携带cookie
+                    body: JSON.stringify({ email, password })  // 无验证码
+                });
 
-    const prompt = document.getElementById('prompt').value.trim();
-    const size = document.querySelector('.size-btn.active').dataset.size;
+                const data = await res.json();
+                
+                if (data.success) {
+                    showAlert('registerAlert', 'success', '注册成功！请登录');
+                    setTimeout(() => toggleAuth('login'), 1000);
+                } else {
+                    showAlert('registerAlert', 'error', data.error || '注册失败');
+                }
+            } catch (e) {
+                showAlert('registerAlert', 'error', '网络错误，请重试');
+            }
+        }
 
-    const formData = new FormData();
-    formData.append('prompt', prompt);
-    formData.append('size', size);
+        // 退出（关键修复：携带cookie）
+        async function handleLogout() {
+            await fetch('/api/logout', { credentials: 'include' });
+            currentUser = null;
+            showAuth();
+        }
 
-    let endpoint = API.generate;
+        // 页面导航
+        function navigate(page) {
+            // 更新导航状态
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event?.currentTarget?.classList.add('active');
+            
+            // 隐藏所有页面
+            document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
+            
+            // 显示目标页面
+            document.getElementById(`page-${page}`).classList.remove('hidden');
+            currentPage = page;
+            
+            // 更新标题
+            const titles = {
+                home: '首页',
+                text2img: '文生图',
+                img2img: '图生图',
+                multi: '多图融合',
+                gallery: '创作历史',
+                settings: 'API 设置',
+                admin: '管理后台'
+            };
+            document.getElementById('pageTitle').textContent = titles[page] || page;
 
-    if (currentTab === 1) {
-      endpoint = API.img2img;
-      uploadedFiles.forEach(f => formData.append('image', f));
-    } else if (currentTab === 2) {
-      endpoint = API.multiRef;
-      uploadedFiles.forEach(f => formData.append('images', f));
-    }
+            // 加载数据
+            if (page === 'gallery') loadHistory();
+            if (page === 'settings') loadApiList();
+            if (page === 'admin' && currentUser?.role === 'admin') loadAdminStats();
+        }
 
-    try {
-      const res = await fetch(endpoint, { method: 'POST', body: formData });
-      const data = await res.json();
+        // 尺寸选择
+        function selectSize(type, el) {
+            document.querySelectorAll(`#${type}Sizes .size-option`).forEach(opt => opt.classList.remove('active'));
+            el.classList.add('active');
+            selectedSizes[type] = el.dataset.size;
+        }
 
-      if (!res.ok) throw new Error(data.error || '生成失败');
+        // 文生图（关键修复：携带cookie）
+        async function generateText2Img() {
+            const prompt = document.getElementById('t2iPrompt').value;
+            if (!prompt) return alert('请输入描述');
 
-      document.getElementById('resultImg').src = data.image_url || data.imageUrl;
-      document.getElementById('resultPrompt').textContent = prompt;
-      document.getElementById('resultArea').classList.remove('hidden');
-      showToast('生成成功！', 'success');
+            const btn = document.getElementById('t2iBtn');
+            const result = document.getElementById('t2iResult');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px;"></div> 生成中...';
+            result.innerHTML = '<div class="result-placeholder"><div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">AI正在创作中...</p></div>';
 
-      setTimeout(loadHistory, 800);
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      btn.innerHTML = originalText;
-      btn.disabled = false;
-    }
-  });
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',  // 关键：携带cookie
+                    body: JSON.stringify({ prompt, size: selectedSizes.t2i })
+                });
 
-  // ==================== 历史记录 ====================
-  async function loadHistory() {
-    if (!currentUser) return;
-    try {
-      const res = await fetch(API.history + '?page=1&limit=12');
-      const list = await res.json();
-      const grid = document.getElementById('historyGrid');
-      grid.innerHTML = '';
+                const data = await res.json();
+                
+                if (data.success) {
+                    result.innerHTML = `<img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')"><p style="margin-top: 12px; text-align: center; color: var(--text-muted); font-size: 13px;">双击图片查看原图</p>`;
+                } else {
+                    result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="font-size: 48px; color: var(--danger); margin-bottom: 16px;"></i><p>${data.error || '生成失败'}</p></div>`;
+                }
+            } catch (e) {
+                result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="font-size: 48px; color: var(--danger); margin-bottom: 16px;"></i><p>网络错误</p></div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> 生成图像';
+            }
+        }
 
-      list.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'history-item glass';
-        div.innerHTML = `
-          <img src="${item.image_url}" alt="">
-          <div class="history-info">
-            <div style="font-size:0.95rem;margin-bottom:0.6rem;color:var(--text-light);">${item.prompt.substring(0,65)}${item.prompt.length>65?'...':''}</div>
-            <small>${new Date(item.created_at).toLocaleString('zh-CN')}</small>
-            <button onclick="deleteHistory(${item.id});event.stopImmediatePropagation()" style="margin-top:1rem;background:#ef4444;color:white;border:none;padding:6px 16px;border-radius:8px;cursor:pointer;">删除</button>
-          </div>
-        `;
-        grid.appendChild(div);
-      });
-    } catch(e) {}
-  }
+        // 图生图文件处理
+        function handleI2IFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            i2iFile = file;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('i2iPreview').innerHTML = `<img src="${e.target.result}" style="max-width: 200px; border-radius: 8px; border: 1px solid var(--border-glass);">`;
+            };
+            reader.readAsDataURL(file);
+        }
 
-  window.deleteHistory = async (id) => {
-    if (!confirm('确定删除？')) return;
-    await fetch(`${API.history}/${id}`, { method: 'DELETE' });
-    loadHistory();
-  };
+        // 图生图（关键修复：携带cookie）
+        async function generateImg2Img() {
+            if (!i2iFile) return alert('请先上传图片');
+            const prompt = document.getElementById('i2iPrompt').value;
 
-  // ==================== 文件上传 ====================
-  const dropZone = document.getElementById('dropZone');
-  const fileInput = document.getElementById('fileInput');
+            const formData = new FormData();
+            formData.append('image', i2iFile);
+            formData.append('prompt', prompt);
+            formData.append('size', selectedSizes.i2i);
 
-  dropZone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+            const btn = document.getElementById('i2iBtn');
+            const result = document.getElementById('i2iResult');
+            
+            btn.disabled = true;
+            result.innerHTML = '<div class="result-placeholder"><div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">处理中...</p></div>';
 
-  function handleFiles(files) {
-    uploadedFiles = Array.from(files).slice(0,4);
-    const container = document.getElementById('previewContainer');
-    container.innerHTML = '';
+            try {
+                const res = await fetch('/api/img2img', {
+                    method: 'POST',
+                    credentials: 'include',  // 关键：携带cookie
+                    body: formData  // FormData不需要Content-Type头
+                });
 
-    uploadedFiles.forEach((file, i) => {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const div = document.createElement('div');
-        div.className = 'preview-item';
-        div.innerHTML = `
-          <img src="${ev.target.result}">
-          <div class="remove-btn" onclick="removePreview(${i});event.stopImmediatePropagation()">×</div>
-        `;
-        container.appendChild(div);
-      };
-      reader.readAsDataURL(file);
-    });
-  }
+                const data = await res.json();
+                
+                if (data.success) {
+                    result.innerHTML = `<img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')">`;
+                } else {
+                    result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 48px; margin-bottom: 16px;"></i><p>${data.error || '处理失败'}</p></div>`;
+                }
+            } catch (e) {
+                result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 48px; margin-bottom: 16px;"></i><p>网络错误</p></div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> 开始转换';
+            }
+        }
 
-  window.removePreview = (i) => {
-    uploadedFiles.splice(i,1);
-    handleFiles(uploadedFiles);
-  };
+        // 多图处理
+        function handleMultiFiles(e) {
+            multiFiles = Array.from(e.target.files).slice(0, 4);
+            const preview = document.getElementById('multiPreview');
+            preview.innerHTML = '';
+            
+            multiFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    preview.innerHTML += `<img src="${e.target.result}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-glass);">`;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
 
-  // ==================== 尺寸按钮 ====================
-  function createSizeButtons() {
-    const sizes = [
-      {s:'512x512',t:'小'},
-      {s:'768x768',t:'中'},
-      {s:'1024x1024',t:'标准'},
-      {s:'1024x1536',t:'竖版'},
-      {s:'1536x1024',t:'横版'}
-    ];
-    const grid = document.getElementById('sizeGrid');
-    grid.innerHTML = '';
-    sizes.forEach((item,i) => {
-      const btn = document.createElement('div');
-      btn.className = `size-btn ${i===2?'active':''}`;
-      btn.dataset.size = item.s;
-      btn.textContent = `${item.s} ${item.t}`;
-      btn.onclick = () => {
-        document.querySelectorAll('.size-btn').forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
-      };
-      grid.appendChild(btn);
-    });
-  }
+        // 多图融合（关键修复：携带cookie）
+        async function generateMulti() {
+            if (multiFiles.length === 0) return alert('请至少上传一张图片');
+            const prompt = document.getElementById('multiPrompt').value;
 
-  // ==================== 初始化 ====================
-  document.addEventListener('DOMContentLoaded', () => {
-    createSizeButtons();
+            const formData = new FormData();
+            multiFiles.forEach(f => formData.append('images', f));
+            formData.append('prompt', prompt);
+            formData.append('size', selectedSizes.multi);
 
-    // 绑定认证表单
-    document.getElementById('authForm').addEventListener('submit', authSubmit);
+            const btn = document.getElementById('multiBtn');
+            const result = document.getElementById('multiResult');
+            
+            btn.disabled = true;
+            result.innerHTML = '<div class="result-placeholder"><div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">融合中...</p></div>';
 
-    // 检查是否已登录
-    fetch(API.user).then(r => {
-      if (r.ok) {
-        r.json().then(user => {
-          currentUser = user;
-          document.getElementById('guestArea').style.display = 'none';
-          document.getElementById('userArea').style.display = 'flex';
-          document.getElementById('userEmail').textContent = user.email;
-          loadHistory();
-        });
-      }
-    }).catch(()=>{});
+            try {
+                const res = await fetch('/api/multi-ref', {
+                    method: 'POST',
+                    credentials: 'include',  // 关键：携带cookie
+                    body: formData
+                });
 
-    // Tab 点击
-    document.querySelectorAll('.tab').forEach((tab,i) => {
-      tab.onclick = () => {
-        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-        tab.classList.add('active');
-        currentTab = i;
-        document.getElementById('uploadArea').style.display = (i===0) ? 'none' : 'block';
-      };
-    });
+                const data = await res.json();
+                
+                if (data.success) {
+                    result.innerHTML = `<img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')">`;
+                } else {
+                    result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 48px; margin-bottom: 16px;"></i><p>${data.error || '融合失败'}</p></div>`;
+                }
+            } catch (e) {
+                result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 48px; margin-bottom: 16px;"></i><p>网络错误</p></div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-layer-group"></i> 融合生成';
+            }
+        }
 
-    // 拖拽上传
-    dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.style.borderColor='#fbbf24';});
-    dropZone.addEventListener('dragleave', ()=>{dropZone.style.borderColor='var(--border)';});
-    dropZone.addEventListener('drop', e=>{
-      e.preventDefault();
-      dropZone.style.borderColor='var(--border)';
-      handleFiles(e.dataTransfer.files);
-    });
+        // API设置（关键修复：携带cookie）
+        async function loadApiList() {
+            try {
+                const res = await fetch('/api/user/apis', { credentials: 'include' });
+                const apis = await res.json();
+                
+                const list = document.getElementById('apiList');
+                if (apis.length === 0) {
+                    list.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 40px;">暂无配置，请添加</p>';
+                    return;
+                }
 
-    // 默认显示文生图
-    document.getElementById('uploadArea').style.display = 'none';
-  });
+                list.innerHTML = apis.map(api => `
+                    <div class="api-item ${api.is_default ? 'active' : ''}">
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">${api.name}</div>
+                            <div style="font-size: 13px; color: var(--text-muted);">${api.model}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            ${api.is_default ? '<span class="badge badge-primary">默认</span>' : ''}
+                            <button onclick="deleteApi(${api.id})" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('加载API列表失败');
+            }
+        }
 
-  // 全局暴露给 onclick
-  window.showLoginModal = () => showModal(true);
-  window.showRegisterModal = () => showModal(false);
-  window.closeModal = closeModal;
-  window.toggleAuthMode = toggleAuthMode;
-  window.logout = logout;
-  window.showSection = (sec) => {
-    document.getElementById('historySection').style.display = (sec==='history') ? 'block' : 'none';
-  };
-</script>
+        async function saveApiConfig() {
+            const name = document.getElementById('apiName').value;
+            const api_url = document.getElementById('apiUrl').value;
+            const api_key = document.getElementById('apiKey').value;
+            const model = document.getElementById('apiModel').value;
+
+            if (!name || !api_url || !api_key) return alert('请填写完整信息');
+
+            try {
+                const res = await fetch('/api/user/apis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',  // 关键：携带cookie
+                    body: JSON.stringify({ name, api_url, api_key, model, provider_id: 'custom', is_default: true })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    alert('保存成功');
+                    loadApiList();
+                    // 清空表单
+                    document.getElementById('apiName').value = '';
+                    document.getElementById('apiUrl').value = '';
+                    document.getElementById('apiKey').value = '';
+                    document.getElementById('apiModel').value = '';
+                } else {
+                    alert(data.error || '保存失败');
+                }
+            } catch (e) {
+                alert('网络错误');
+            }
+        }
+
+        async function deleteApi(id) {
+            if (!confirm('确定删除此配置？')) return;
+            
+            try {
+                const res = await fetch(`/api/user/apis/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'  // 关键：携带cookie
+                });
+                
+                if (res.ok) {
+                    loadApiList();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (e) {
+                alert('网络错误');
+            }
+        }
+
+        // 历史记录（关键修复：携带cookie）
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history?page=1&limit=20', { credentials: 'include' });
+                const items = await res.json();
+                
+                const grid = document.getElementById('galleryGrid');
+                if (items.length === 0) {
+                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);">暂无创作记录</div>';
+                    return;
+                }
+
+                grid.innerHTML = items.map(item => `
+                    <div class="gallery-item">
+                        ${item.image_url ? `<img src="${item.image_url}" class="gallery-img" loading="lazy">` : '<div class="gallery-img" style="display: flex; align-items: center; justify-content: center; color: var(--text-muted);">生成失败</div>'}
+                        <div class="gallery-info">
+                            <div class="gallery-prompt">${item.prompt || '无描述'}</div>
+                            <div class="gallery-meta">
+                                <span class="badge badge-primary">${item.size}</span>
+                                <span>${new Date(item.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                document.getElementById('galleryGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--danger);">加载失败</div>';
+            }
+        }
+
+        // 管理员统计（关键修复：携带cookie）
+        async function loadAdminStats() {
+            try {
+                const [statsRes, usersRes] = await Promise.all([
+                    fetch('/api/admin/stats', { credentials: 'include' }),
+                    fetch('/api/admin/users', { credentials: 'include' })
+                ]);
+
+                const stats = await statsRes.json();
+                const users = await usersRes.json();
+
+                document.getElementById('statUsers').textContent = stats.total_users;
+                document.getElementById('statGens').textContent = stats.total_generations;
+                document.getElementById('statToday').textContent = stats.today_generations;
+
+                document.getElementById('adminUsersList').innerHTML = users.map(u => `
+                    <tr style="border-bottom: 1px solid var(--border-glass);">
+                        <td style="padding: 12px;">${u.email}</td>
+                        <td style="padding: 12px;"><span class="badge ${u.role === 'admin' ? 'badge-primary' : ''}">${u.role}</span></td>
+                        <td style="padding: 12px;">${u.total_generations}</td>
+                        <td style="padding: 12px; color: var(--text-muted);">${new Date(u.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('加载管理数据失败');
+            }
+        }
+    </script>
 </body>
 </html>
