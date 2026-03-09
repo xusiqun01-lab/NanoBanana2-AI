@@ -13,6 +13,9 @@ const FormData = require('form-data');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ==================== 关键修复 1: 信任反向代理 ====================
+app.set('trust proxy', 1);
+
 // 确保上传目录存在
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -36,31 +39,37 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('.'));
 app.use('/uploads', express.static(uploadDir));
 
-// Session 配置（生产环境安全）
+// ==================== 关键修复 2: Session 配置 ====================
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+// 判断是否在 Railway 环境（有 RAILWAY_STATIC_URL 或 RAILWAY_PUBLIC_DOMAIN）
+const isRailway = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
+
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  name: 'sessionId', // 自定义 cookie 名称，避免冲突
   cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000
-  }
+    secure: false, // 必须为 false，Railway 使用反向代理
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24小时
+    sameSite: 'lax',
+    path: '/'
+  },
+  rolling: true // 每次请求刷新过期时间
 }));
 
-// ========== 数据库配置（Railway 优化版） ==========
-// 使用当前目录，避免 Railway /data 目录权限问题
+// 数据库配置
 let DB_PATH = process.env.DB_PATH || './data.sqlite';
 const dataDir = path.dirname(DB_PATH);
 
-// 确保数据库目录存在
 if (dataDir !== '.' && !fs.existsSync(dataDir)) {
   try {
     fs.mkdirSync(dataDir, { recursive: true });
     console.log('✓ 数据库目录已创建:', dataDir);
   } catch (err) {
     console.error('✗ 创建数据库目录失败:', err.message);
-    // 回退到当前目录
     DB_PATH = './data.sqlite';
     console.log('⚠ 改用当前目录:', DB_PATH);
   }
@@ -71,6 +80,7 @@ console.log('数据库路径:', path.resolve(DB_PATH));
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.error('数据库连接失败:', err.message);
+    process.exit(1); // 数据库连接失败则退出
   } else {
     console.log('✓ 数据库连接成功');
   }
@@ -111,7 +121,7 @@ const BUILT_IN_PROVIDERS = [
   }
 ];
 
-// ========== 数据库强制初始化函数 ==========
+// ==================== 数据库初始化 ====================
 function initDatabase() {
   return new Promise((resolve, reject) => {
     console.log('开始初始化数据库...');
@@ -180,7 +190,7 @@ function initDatabase() {
         else console.log('✓ 生成记录表已就绪');
       });
 
-      // 创建默认管理员（使用环境变量或默认值）
+      // 创建默认管理员
       const adminEmail = process.env.ADMIN_EMAIL || 'admin@banana.ai';
       const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
       const adminPass = bcrypt.hashSync(adminPassword, 8);
@@ -196,7 +206,6 @@ function initDatabase() {
             console.log('✓ 管理员已存在');
           }
         }
-        // 初始化完成
         console.log('数据库初始化完成');
         resolve();
       });
@@ -206,20 +215,25 @@ function initDatabase() {
 
 // 立即执行初始化
 initDatabase().then(() => {
-  console.log('✓ 系统初始化成功，服务准备就绪');
+  console.log('✓ 系统初始化成功');
 }).catch(err => {
   console.error('✗ 数据库初始化失败:', err);
+  process.exit(1);
 });
 
-// 中间件
+// ==================== 中间件 ====================
 const requireAuth = (req, res, next) => {
-  if (!req.session.userId) return res.status(401).json({ error: '未登录' });
+  if (!req.session.userId) {
+    console.log('未登录访问:', req.path);
+    return res.status(401).json({ error: '未登录' });
+  }
   next();
 };
 
 const requireAdmin = (req, res, next) => {
-  if (!req.session.userId || req.session.role !== 'admin') 
+  if (!req.session.userId || req.session.role !== 'admin') {
     return res.status(403).json({ error: '无权限' });
+  }
   next();
 };
 
@@ -253,18 +267,19 @@ setInterval(() => {
   db.run(`DELETE FROM email_verifications WHERE expires_at < datetime('now') OR used = 1`);
 }, 3600000);
 
-// 根路径
+// ==================== 路由 ====================
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 健康检查（Railway需要）
+// 健康检查
 app.get('/api/health', (req, res) => {
   const dbExists = fs.existsSync(DB_PATH);
   res.json({ 
     status: 'ok', 
     db_connected: dbExists,
     db_path: DB_PATH,
+    session_user: req.session.userId || null,
     time: new Date().toISOString() 
   });
 });
@@ -307,7 +322,6 @@ app.post('/api/auth/send-code', async (req, res) => {
             ${code}
           </div>
           <p>此验证码10分钟内有效，请勿泄露给他人。</p>
-          <p style="color: #999; font-size: 12px;">如非本人操作，请忽略此邮件。</p>
         </div>`
       );
       
@@ -357,11 +371,15 @@ app.post('/api/auth/register', (req, res) => {
     });
 });
 
-// 登录
+// ==================== 关键修复 3: 登录接口增强日志 ====================
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
   
-  console.log('登录尝试:', email);
+  console.log('登录尝试:', email, '| SessionID:', req.sessionID);
+  
+  if (!email || !password) {
+    return res.json({ error: '请输入邮箱和密码' });
+  }
   
   db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
     if (err) {
@@ -384,27 +402,48 @@ app.post('/api/auth/login', (req, res) => {
       return res.json({ error: '请先验证邮箱', needVerify: true });
     }
     
+    // 设置 session
     req.session.userId = user.id;
     req.session.role = user.role;
+    req.session.email = user.email;
     
-    console.log('登录成功:', email, '角色:', user.role);
-    res.json({ success: true, role: user.role });
+    console.log('登录成功:', email, '| Session 设置:', req.session.userId);
+    
+    // 保存 session
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session 保存失败:', err);
+        return res.json({ error: '登录失败，请重试' });
+      }
+      
+      res.json({ success: true, role: user.role, userId: user.id });
+    });
   });
 });
 
 // 获取用户信息
 app.get('/api/user', requireAuth, (req, res) => {
+  console.log('获取用户信息:', req.session.userId);
   db.get('SELECT id, email, role, created_at FROM users WHERE id = ?', 
     [req.session.userId], (err, user) => {
-      if (err || !user) return res.status(500).json({ error: '查询失败' });
+      if (err || !user) {
+        console.error('查询用户信息失败:', err);
+        return res.status(500).json({ error: '查询失败' });
+      }
       res.json(user);
     });
 });
 
 // 退出
 app.get('/api/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('退出失败:', err);
+      return res.json({ error: '退出失败' });
+    }
+    res.clearCookie('sessionId');
+    res.json({ success: true });
+  });
 });
 
 // API配置管理
@@ -656,20 +695,21 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
       db.get(`SELECT COUNT(*) as today_gens FROM generations 
               WHERE date(created_at) = date('now')`, [], (err, t) => {
         res.json({
-          total_users: u.total_users,
-          total_generations: g.total_gens,
-          today_generations: t.today_gens
+          total_users: u ? u.total_users : 0,
+          total_generations: g ? g.total_gens : 0,
+          today_generations: t ? t.today_gens : 0
         });
       });
     });
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🍌 香蕉 AI 服务器运行在端口 ${PORT}`);
   console.log(`数据库路径: ${path.resolve(DB_PATH)}`);
   console.log(`管理员账号: ${process.env.ADMIN_EMAIL || 'admin@banana.ai'} / ${process.env.ADMIN_PASSWORD || 'admin123'}`);
   console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Railway环境: ${isRailway ? '是' : '否'}`);
   if (!mailTransporter) {
     console.log(`⚠️ 警告: 未配置SMTP，邮件验证码功能将使用控制台模拟模式`);
   }
