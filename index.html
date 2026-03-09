@@ -5,27 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>香蕉 AI - 专业图像生成平台</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #f59e0b;
             --primary-light: #fbbf24;
             --primary-dark: #d97706;
             --primary-glow: rgba(245, 158, 11, 0.3);
-            --bg-dark: #030303;
-            --bg-card: rgba(20, 20, 20, 0.6);
-            --bg-glass: rgba(255, 255, 255, 0.03);
-            --border-glass: rgba(255, 255, 255, 0.08);
+            --bg-dark: #0a0a0a;
+            --bg-card: #141414;
+            --bg-glass: rgba(20, 20, 20, 0.8);
+            --border-glass: rgba(255, 255, 255, 0.1);
             --text-primary: #fafafa;
             --text-secondary: #a1a1aa;
             --text-muted: #71717a;
             --danger: #ef4444;
             --success: #22c55e;
-            --info: #3b82f6;
-            --radius-sm: 12px;
-            --radius-md: 16px;
-            --radius-lg: 24px;
-            --radius-xl: 32px;
+            --radius: 12px;
         }
 
         * {
@@ -35,677 +30,420 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
             min-height: 100vh;
-            overflow-x: hidden;
-            line-height: 1.6;
+            overflow: hidden;
         }
 
-        /* 背景光效 */
-        .ambient-light {
-            position: fixed;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
-            top: -200px;
-            left: -200px;
-            pointer-events: none;
-            z-index: 0;
-            animation: float 20s infinite ease-in-out;
-        }
-
-        .ambient-light:nth-child(2) {
-            top: auto;
-            bottom: -200px;
-            left: auto;
-            right: -200px;
-            animation-delay: -10s;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(50px, 50px) scale(1.1); }
-        }
-
-        /* 登录页 - 玻璃态卡片 */
+        /* 登录页 */
         .auth-container {
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.1), transparent 40%),
+                        radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.05), transparent 40%);
             padding: 20px;
-            position: relative;
-            z-index: 1;
-            background: radial-gradient(ellipse at top, rgba(245, 158, 11, 0.05), transparent 50%);
         }
 
         .auth-card {
             width: 100%;
-            max-width: 480px;
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            max-width: 420px;
+            background: var(--bg-card);
             border: 1px solid var(--border-glass);
-            border-radius: var(--radius-xl);
-            padding: 48px;
-            box-shadow: 
-                0 25px 50px -12px rgba(0, 0, 0, 0.5),
-                inset 0 1px 1px rgba(255, 255, 255, 0.05);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .auth-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.3), transparent);
+            border-radius: var(--radius);
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
 
         .auth-header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 32px;
         }
 
-        .logo-container {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 24px;
-            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
-            border-radius: var(--radius-lg);
+        .logo {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 40px;
-            box-shadow: 
-                0 0 40px var(--primary-glow),
-                inset 0 1px 1px rgba(255, 255, 255, 0.3);
-            position: relative;
-        }
-
-        .logo-container::after {
-            content: '';
-            position: absolute;
-            inset: -2px;
-            border-radius: var(--radius-lg);
-            background: linear-gradient(135deg, var(--primary-light), transparent, var(--primary));
-            z-index: -1;
-            opacity: 0.5;
+            font-size: 32px;
+            margin: 0 auto 16px;
+            box-shadow: 0 8px 24px var(--primary-glow);
         }
 
         .auth-header h1 {
-            font-size: 32px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #fff 0%, var(--primary-light) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 28px;
             margin-bottom: 8px;
-            letter-spacing: -0.5px;
         }
 
         .auth-header p {
             color: var(--text-secondary);
-            font-size: 15px;
-            font-weight: 400;
+            font-size: 14px;
         }
 
         .form-group {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .form-label {
             display: block;
-            margin-bottom: 10px;
-            color: var(--text-secondary);
+            margin-bottom: 8px;
             font-size: 14px;
+            color: var(--text-secondary);
             font-weight: 500;
-            letter-spacing: 0.3px;
-        }
-
-        .input-wrapper {
-            position: relative;
         }
 
         .form-input {
             width: 100%;
-            padding: 14px 18px;
-            background: rgba(0, 0, 0, 0.3);
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.3);
             border: 1px solid var(--border-glass);
-            border-radius: var(--radius-md);
+            border-radius: 8px;
             color: var(--text-primary);
             font-size: 15px;
-            font-family: inherit;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
             outline: none;
-        }
-
-        .form-input:hover {
-            border-color: rgba(245, 158, 11, 0.3);
         }
 
         .form-input:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
-            background: rgba(0, 0, 0, 0.4);
-        }
-
-        .input-icon {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 16px;
         }
 
         .btn-primary {
             width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
             color: #000;
             border: none;
-            border-radius: var(--radius-md);
+            border-radius: 8px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(245, 158, 11, 0.4);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0);
+            box-shadow: 0 8px 24px var(--primary-glow);
         }
 
         .btn-primary:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-            transform: none;
         }
 
         .auth-switch {
             text-align: center;
-            margin-top: 28px;
+            margin-top: 24px;
             color: var(--text-secondary);
             font-size: 14px;
         }
 
         .auth-switch a {
             color: var(--primary-light);
-            text-decoration: none;
-            font-weight: 600;
             cursor: pointer;
             margin-left: 4px;
-            transition: color 0.2s;
-        }
-
-        .auth-switch a:hover {
-            color: var(--primary);
-            text-decoration: underline;
+            font-weight: 600;
         }
 
         .alert {
             padding: 12px 16px;
-            border-radius: var(--radius-sm);
+            border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
             display: none;
             align-items: center;
             gap: 8px;
-            backdrop-filter: blur(10px);
         }
 
         .alert.show { display: flex; }
-        .alert-success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: var(--success); }
-        .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--danger); }
-        .alert-info { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); color: var(--info); }
+        .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; }
+        .alert-success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: #4ade80; }
 
-        /* 主应用布局 */
+        /* 主应用布局 - 经典双栏 */
         .app-container {
             display: none;
-            min-height: 100vh;
-            position: relative;
-            z-index: 1;
+            height: 100vh;
+            width: 100vw;
         }
 
-        /* 侧边栏 - 玻璃态 */
+        .app-layout {
+            display: flex;
+            height: 100%;
+        }
+
+        /* 侧边栏 */
         .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 280px;
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            width: 260px;
+            background: var(--bg-card);
             border-right: 1px solid var(--border-glass);
-            padding: 32px 20px;
             display: flex;
             flex-direction: column;
-            z-index: 100;
+            flex-shrink: 0;
         }
 
         .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--border-glass);
             display: flex;
             align-items: center;
-            gap: 16px;
-            padding: 0 12px 32px;
-            border-bottom: 1px solid var(--border-glass);
-            margin-bottom: 32px;
+            gap: 12px;
         }
 
         .sidebar-logo {
-            width: 48px;
-            height: 48px;
+            width: 40px;
+            height: 40px;
             background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            border-radius: var(--radius-md);
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            box-shadow: 0 4px 20px var(--primary-glow);
+            font-size: 20px;
         }
 
         .sidebar-brand h2 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
-            color: var(--text-primary);
-            letter-spacing: -0.3px;
         }
 
         .sidebar-brand span {
-            font-size: 12px;
-            color: var(--text-secondary);
+            font-size: 11px;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 1px;
-            font-weight: 500;
         }
 
         .nav-section {
-            margin-bottom: 32px;
+            padding: 20px 12px;
+            flex: 1;
+            overflow-y: auto;
         }
 
         .nav-section-title {
             font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
+            letter-spacing: 1px;
             color: var(--text-muted);
             padding: 0 12px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             font-weight: 600;
         }
 
         .nav-item {
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 14px 16px;
+            gap: 12px;
+            padding: 12px;
             margin: 4px 0;
-            border-radius: var(--radius-md);
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s ease;
             color: var(--text-secondary);
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 500;
+            transition: all 0.2s;
             border: 1px solid transparent;
         }
 
         .nav-item:hover {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255,255,255,0.05);
             color: var(--text-primary);
-            transform: translateX(4px);
         }
 
         .nav-item.active {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
+            background: rgba(245, 158, 11, 0.15);
             color: var(--primary-light);
-            border-color: rgba(245, 158, 11, 0.2);
-            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
         }
 
         .nav-item i {
-            width: 24px;
+            width: 20px;
             text-align: center;
-            font-size: 18px;
         }
 
         /* 主内容区 */
         .main-content {
-            margin-left: 280px;
-            min-height: 100vh;
+            flex: 1;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-dark);
         }
 
         .top-header {
-            height: 80px;
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
+            height: 64px;
+            background: var(--bg-card);
             border-bottom: 1px solid var(--border-glass);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 40px;
-            position: sticky;
-            top: 0;
-            z-index: 50;
+            padding: 0 32px;
+            flex-shrink: 0;
         }
 
         .page-title {
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #fff 0%, var(--text-secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 20px;
+            font-weight: 600;
         }
 
-        .user-menu {
+        .user-section {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 16px;
         }
 
         .user-info {
             text-align: right;
         }
 
-        .user-name {
-            font-weight: 600;
+        .user-email {
             font-size: 14px;
-            color: var(--text-primary);
+            font-weight: 500;
         }
 
         .user-role {
             font-size: 12px;
             color: var(--text-muted);
-            text-transform: capitalize;
         }
 
         .btn-logout {
-            padding: 10px 20px;
+            padding: 8px 16px;
             background: transparent;
             border: 1px solid var(--border-glass);
             color: var(--text-secondary);
-            border-radius: var(--radius-sm);
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s;
+            font-size: 13px;
+            transition: all 0.2s;
         }
 
         .btn-logout:hover {
             border-color: var(--danger);
             color: var(--danger);
-            background: rgba(239, 68, 68, 0.05);
         }
 
         .content-area {
             flex: 1;
-            padding: 40px;
-            max-width: 1600px;
+            overflow: auto;
+            padding: 24px;
         }
 
-        /* 首页 Hero */
-        .hero-section {
-            text-align: center;
-            padding: 80px 20px;
-            margin-bottom: 48px;
-            position: relative;
-        }
-
-        .hero-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: rgba(245, 158, 11, 0.1);
-            border: 1px solid rgba(245, 158, 11, 0.2);
-            border-radius: 100px;
-            font-size: 13px;
-            color: var(--primary-light);
-            margin-bottom: 24px;
-            font-weight: 500;
-        }
-
-        .hero-title {
-            font-size: 56px;
-            font-weight: 800;
-            margin-bottom: 20px;
-            letter-spacing: -1.5px;
-            line-height: 1.1;
-            background: linear-gradient(135deg, #fff 0%, var(--primary-light) 50%, var(--primary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero-subtitle {
-            font-size: 20px;
-            color: var(--text-secondary);
-            max-width: 600px;
-            margin: 0 auto 40px;
-            line-height: 1.6;
-            font-weight: 400;
-        }
-
-        .hero-actions {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn-large {
-            padding: 18px 36px;
-            font-size: 16px;
-            border-radius: var(--radius-md);
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: none;
-        }
-
-        .btn-glow {
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            color: #000;
-            box-shadow: 0 4px 30px var(--primary-glow);
-        }
-
-        .btn-glow:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 40px var(--primary-glow);
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--border-glass);
-            color: var(--text-primary);
-        }
-
-        .btn-outline:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-            background: rgba(245, 158, 11, 0.05);
-        }
-
-        /* 功能卡片网格 */
-        .features-grid {
+        /* 生成页面布局 - 填满屏幕 */
+        .generate-layout {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: 1fr 1fr;
             gap: 24px;
-            margin-top: 48px;
+            height: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
-        .feature-card {
-            background: var(--bg-glass);
+        .panel {
+            background: var(--bg-card);
             border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 32px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
+            border-radius: var(--radius);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
             overflow: hidden;
         }
 
-        .feature-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(245, 158, 11, 0.3);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-        }
-
-        .feature-icon {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
-            border: 1px solid rgba(245, 158, 11, 0.2);
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: var(--primary-light);
-            margin-bottom: 20px;
-            transition: all 0.3s;
-        }
-
-        .feature-card:hover .feature-icon {
-            transform: scale(1.1);
-            box-shadow: 0 0 30px var(--primary-glow);
-        }
-
-        .feature-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: var(--text-primary);
-        }
-
-        .feature-desc {
-            color: var(--text-secondary);
-            font-size: 15px;
-            line-height: 1.6;
-        }
-
-        /* 生成页面 */
-        .generate-layout {
-            display: grid;
-            grid-template-columns: 1fr 400px;
-            gap: 32px;
-            max-width: 1400px;
-        }
-
-        .input-panel {
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 32px;
-            backdrop-filter: blur(10px);
-        }
-
         .panel-header {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 24px;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-glass);
             display: flex;
             align-items: center;
             gap: 10px;
-            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 16px;
+            flex-shrink: 0;
         }
 
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* 尺寸选择器 */
         .size-selector {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
             gap: 12px;
-            flex-wrap: wrap;
             margin-bottom: 24px;
         }
 
         .size-option {
-            padding: 12px 20px;
+            padding: 16px 12px;
             background: rgba(0,0,0,0.3);
             border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s;
             text-align: center;
-            min-width: 100px;
+            transition: all 0.2s;
         }
 
         .size-option:hover {
-            border-color: rgba(245, 158, 11, 0.4);
+            border-color: var(--primary);
         }
 
         .size-option.active {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1));
+            background: rgba(245, 158, 11, 0.2);
             border-color: var(--primary);
             color: var(--primary-light);
-            box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
         }
 
         .size-label {
             display: block;
             font-size: 12px;
             opacity: 0.7;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
 
         .size-value {
             font-weight: 600;
-            font-size: 14px;
+            font-size: 15px;
         }
 
-        .prompt-textarea {
+        .prompt-input {
             width: 100%;
-            min-height: 140px;
+            min-height: 120px;
             padding: 16px;
             background: rgba(0,0,0,0.3);
             border: 1px solid var(--border-glass);
-            border-radius: var(--radius-md);
+            border-radius: 8px;
             color: var(--text-primary);
             font-size: 15px;
-            font-family: inherit;
             resize: vertical;
             outline: none;
-            transition: all 0.3s;
+            font-family: inherit;
             margin-bottom: 20px;
         }
 
-        .prompt-textarea:focus {
+        .prompt-input:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
         }
 
+        /* 上传区域 - 关键修复 */
         .upload-zone {
             border: 2px dashed var(--border-glass);
-            border-radius: var(--radius-md);
-            padding: 40px;
+            border-radius: 12px;
+            padding: 48px 24px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
             background: rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
         }
 
         .upload-zone:hover {
@@ -713,10 +451,52 @@
             background: rgba(245, 158, 11, 0.05);
         }
 
-        .upload-icon-large {
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(245, 158, 11, 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
             font-size: 48px;
             color: var(--text-muted);
             margin-bottom: 16px;
+            transition: all 0.3s;
+        }
+
+        .upload-zone:hover .upload-icon {
+            color: var(--primary);
+            transform: translateY(-4px);
+        }
+
+        .upload-text {
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .upload-hint {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .preview-area {
+            margin-top: 16px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .preview-img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid var(--border-glass);
         }
 
         .generate-btn {
@@ -726,7 +506,7 @@
             background: linear-gradient(135deg, var(--primary-light), var(--primary));
             color: #000;
             border: none;
-            border-radius: var(--radius-md);
+            border-radius: 8px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
@@ -744,33 +524,40 @@
         }
 
         .generate-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.6;
             cursor: not-allowed;
         }
 
-        .result-panel {
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            min-height: 600px;
-        }
-
-        .result-placeholder {
+        /* 预览区域 */
+        .result-area {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: var(--text-muted);
+            min-height: 400px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-placeholder {
             text-align: center;
+            color: var(--text-muted);
+        }
+
+        .result-placeholder i {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.3;
         }
 
         .result-image {
-            width: 100%;
-            border-radius: var(--radius-md);
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         }
 
@@ -787,19 +574,25 @@
             to { transform: rotate(360deg); }
         }
 
-        /* API设置页 */
+        .error-message {
+            color: var(--danger);
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* API设置页面 */
         .settings-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 24px;
+            max-width: 1200px;
         }
 
         .setting-card {
-            background: var(--bg-glass);
+            background: var(--bg-card);
             border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 28px;
-            backdrop-filter: blur(10px);
+            border-radius: var(--radius);
+            padding: 24px;
         }
 
         .setting-card h3 {
@@ -810,6 +603,33 @@
             gap: 10px;
         }
 
+        .provider-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .provider-info h4 {
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .provider-info p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .provider-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
         .api-item {
             display: flex;
             justify-content: space-between;
@@ -817,19 +637,13 @@
             padding: 16px;
             background: rgba(0,0,0,0.2);
             border: 1px solid var(--border-glass);
-            border-radius: var(--radius-sm);
+            border-radius: 8px;
             margin-bottom: 12px;
-            transition: all 0.3s;
-        }
-
-        .api-item:hover {
-            border-color: rgba(245, 158, 11, 0.3);
-            transform: translateX(4px);
         }
 
         .api-item.active {
             border-color: var(--primary);
-            background: rgba(245, 158, 11, 0.05);
+            background: rgba(245, 158, 11, 0.1);
         }
 
         .badge {
@@ -837,218 +651,165 @@
             border-radius: 100px;
             font-size: 11px;
             font-weight: 600;
-            text-transform: uppercase;
         }
 
         .badge-primary {
-            background: rgba(245, 158, 11, 0.15);
+            background: rgba(245, 158, 11, 0.2);
             color: var(--primary-light);
         }
 
-        /* 图库 */
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 24px;
+        /* 首页 */
+        .hero-section {
+            text-align: center;
+            padding: 60px 20px;
         }
 
-        .gallery-item {
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            transition: all 0.4s;
-            position: relative;
-        }
-
-        .gallery-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-        }
-
-        .gallery-img {
-            width: 100%;
-            height: 280px;
-            object-fit: cover;
-            background: #000;
-        }
-
-        .gallery-info {
-            padding: 20px;
-        }
-
-        .gallery-prompt {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 12px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .gallery-meta {
-            display: flex;
-            justify-content: space-between;
+        .hero-badge {
+            display: inline-flex;
             align-items: center;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        /* 管理员 */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-
-        .stat-card {
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 28px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, var(--primary), transparent);
-        }
-
-        .stat-value {
-            font-size: 36px;
-            font-weight: 800;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 100px;
+            font-size: 14px;
             color: var(--primary-light);
-            margin-bottom: 8px;
-            letter-spacing: -1px;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 500;
-        }
-
-        /* 模态框 */
-        .modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius-lg);
-            padding: 32px;
-            width: 100%;
-            max-width: 500px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 24px;
         }
 
-        .modal-title {
-            font-size: 20px;
+        .hero-title {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff 0%, var(--primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 32px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 48px;
+        }
+
+        .btn-large {
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 16px;
             font-weight: 600;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 24px;
             cursor: pointer;
-            transition: color 0.2s;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .modal-close:hover {
+        .btn-glow {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            color: #000;
+            border: none;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-glass);
             color: var(--text-primary);
         }
 
-        /* 隐藏类 */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius);
+            padding: 28px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(245, 158, 11, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-light);
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+
+        .feature-card h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
         .hidden { display: none !important; }
 
-        /* 响应式 */
-        @media (max-width: 1024px) {
+        @media (max-width: 968px) {
             .generate-layout {
                 grid-template-columns: 1fr;
             }
             .sidebar {
-                transform: translateX(-100%);
+                position: fixed;
+                left: -260px;
+                z-index: 100;
+                height: 100vh;
+                transition: left 0.3s;
             }
-            .main-content {
-                margin-left: 0;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .auth-card {
-                padding: 32px 24px;
-            }
-            .hero-title {
-                font-size: 36px;
-            }
-            .content-area {
-                padding: 20px;
+            .sidebar.open {
+                left: 0;
             }
         }
     </style>
 </head>
 <body>
-    <!-- 环境光效 -->
-    <div class="ambient-light"></div>
-    <div class="ambient-light"></div>
-
-    <!-- 认证页面 -->
+    <!-- 登录页 -->
     <div id="authPage" class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
-                <div class="logo-container">🍌</div>
+                <div class="logo">🍌</div>
                 <h1>香蕉 AI</h1>
                 <p>专业图像生成平台</p>
             </div>
 
-            <!-- 登录表单 -->
             <div id="loginForm">
                 <div id="loginAlert" class="alert"></div>
                 <div class="form-group">
                     <label class="form-label">邮箱地址</label>
-                    <div class="input-wrapper">
-                        <input type="email" id="loginEmail" class="form-input" placeholder="name@example.com">
-                        <i class="fas fa-envelope input-icon"></i>
-                    </div>
+                    <input type="email" id="loginEmail" class="form-input" placeholder="name@example.com">
                 </div>
                 <div class="form-group">
                     <label class="form-label">密码</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="loginPassword" class="form-input" placeholder="••••••••">
-                        <i class="fas fa-lock input-icon"></i>
-                    </div>
+                    <input type="password" id="loginPassword" class="form-input" placeholder="••••••••">
                 </div>
                 <button class="btn-primary" onclick="handleLogin()">
                     <i class="fas fa-sign-in-alt"></i> 登录
@@ -1058,29 +819,19 @@
                 </div>
             </div>
 
-            <!-- 注册表单（已移除验证码） -->
             <div id="registerForm" class="hidden">
                 <div id="registerAlert" class="alert"></div>
                 <div class="form-group">
                     <label class="form-label">邮箱地址</label>
-                    <div class="input-wrapper">
-                        <input type="email" id="regEmail" class="form-input" placeholder="name@example.com">
-                        <i class="fas fa-envelope input-icon"></i>
-                    </div>
+                    <input type="email" id="regEmail" class="form-input" placeholder="name@example.com">
                 </div>
                 <div class="form-group">
                     <label class="form-label">设置密码</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="regPassword" class="form-input" placeholder="至少6位字符">
-                        <i class="fas fa-lock input-icon"></i>
-                    </div>
+                    <input type="password" id="regPassword" class="form-input" placeholder="至少6位字符">
                 </div>
                 <div class="form-group">
                     <label class="form-label">确认密码</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="regPassword2" class="form-input" placeholder="再次输入密码">
-                        <i class="fas fa-lock input-icon"></i>
-                    </div>
+                    <input type="password" id="regPassword2" class="form-input" placeholder="再次输入密码">
                 </div>
                 <button class="btn-primary" onclick="handleRegister()">
                     <i class="fas fa-user-plus"></i> 创建账户
@@ -1094,385 +845,383 @@
 
     <!-- 主应用 -->
     <div id="appContainer" class="app-container">
-        <!-- 侧边栏 -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo">🍌</div>
-                <div class="sidebar-brand">
-                    <h2>香蕉 AI</h2>
-                    <span>专业创作</span>
+        <div class="app-layout">
+            <!-- 侧边栏 -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-logo">🍌</div>
+                    <div class="sidebar-brand">
+                        <h2>香蕉 AI</h2>
+                        <span>专业创作</span>
+                    </div>
                 </div>
-            </div>
-
-            <nav>
-                <div class="nav-section">
+                
+                <nav class="nav-section">
                     <div class="nav-section-title">创作</div>
-                    <div class="nav-item active" onclick="navigate('home')">
+                    <div class="nav-item active" onclick="navigate('home')" data-page="home">
                         <i class="fas fa-home"></i>
                         <span>首页</span>
                     </div>
-                    <div class="nav-item" onclick="navigate('text2img')">
+                    <div class="nav-item" onclick="navigate('text2img')" data-page="text2img">
                         <i class="fas fa-pen-nib"></i>
                         <span>文生图</span>
                     </div>
-                    <div class="nav-item" onclick="navigate('img2img')">
+                    <div class="nav-item" onclick="navigate('img2img')" data-page="img2img">
                         <i class="fas fa-image"></i>
                         <span>图生图</span>
                     </div>
-                    <div class="nav-item" onclick="navigate('multi')">
+                    <div class="nav-item" onclick="navigate('multi')" data-page="multi">
                         <i class="fas fa-layer-group"></i>
                         <span>多图融合</span>
                     </div>
-                </div>
 
-                <div class="nav-section">
-                    <div class="nav-section-title">管理</div>
-                    <div class="nav-item" onclick="navigate('gallery')">
+                    <div class="nav-section-title" style="margin-top: 24px;">管理</div>
+                    <div class="nav-item" onclick="navigate('gallery')" data-page="gallery">
                         <i class="fas fa-history"></i>
                         <span>创作历史</span>
                     </div>
-                    <div class="nav-item" onclick="navigate('settings')">
+                    <div class="nav-item" onclick="navigate('settings')" data-page="settings">
                         <i class="fas fa-sliders-h"></i>
                         <span>API 设置</span>
                     </div>
-                    <div class="nav-item admin-only hidden" onclick="navigate('admin')">
+                    <div class="nav-item admin-only hidden" onclick="navigate('admin')" data-page="admin">
                         <i class="fas fa-shield-alt"></i>
                         <span>管理后台</span>
                     </div>
-                </div>
-            </nav>
-        </aside>
+                </nav>
+            </aside>
 
-        <!-- 主内容 -->
-        <main class="main-content">
-            <header class="top-header">
-                <h1 class="page-title" id="pageTitle">首页</h1>
-                <div class="user-menu">
-                    <div class="user-info">
-                        <div class="user-name" id="userName">加载中...</div>
-                        <div class="user-role" id="userRole">用户</div>
+            <!-- 主内容 -->
+            <main class="main-content">
+                <header class="top-header">
+                    <h1 class="page-title" id="pageTitle">首页</h1>
+                    <div class="user-section">
+                        <div class="user-info">
+                            <div class="user-email" id="userName">加载中...</div>
+                            <div class="user-role" id="userRole">用户</div>
+                        </div>
+                        <button class="btn-logout" onclick="handleLogout()">
+                            <i class="fas fa-sign-out-alt"></i> 退出
+                        </button>
                     </div>
-                    <button class="btn-logout" onclick="handleLogout()">
-                        <i class="fas fa-sign-out-alt"></i> 退出
-                    </button>
-                </div>
-            </header>
+                </header>
 
-            <div class="content-area" id="contentArea">
-                <!-- 首页 -->
-                <div id="page-home" class="page">
-                    <div class="hero-section">
-                        <div class="hero-badge">
-                            <i class="fas fa-sparkles"></i> AI 驱动的图像生成
-                        </div>
-                        <h2 class="hero-title">释放你的创造力</h2>
-                        <p class="hero-subtitle">
-                            配置你的专属 API，开始专业级 AI 图像创作之旅。
-                            支持文生图、图生图、多图融合等多种创作模式。
-                        </p>
-                        <div class="hero-actions">
-                            <button class="btn-large btn-glow" onclick="navigate('text2img')">
-                                <i class="fas fa-wand-magic-sparkles"></i> 开始创作
-                            </button>
-                            <button class="btn-large btn-outline" onclick="navigate('settings')">
-                                <i class="fas fa-cog"></i> 配置 API
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="features-grid">
-                        <div class="feature-card" onclick="navigate('text2img')">
-                            <div class="feature-icon">
-                                <i class="fas fa-pen-nib"></i>
+                <div class="content-area" id="contentArea">
+                    <!-- 首页 -->
+                    <div id="page-home" class="page">
+                        <div class="hero-section">
+                            <div class="hero-badge">
+                                <i class="fas fa-sparkles"></i> AI 驱动的图像生成
                             </div>
-                            <h3 class="feature-title">文生图</h3>
-                            <p class="feature-desc">输入文字描述，AI 为你生成精美图像。支持 1K/2K/4K 分辨率输出。</p>
-                        </div>
-                        <div class="feature-card" onclick="navigate('img2img')">
-                            <div class="feature-icon">
-                                <i class="fas fa-image"></i>
-                            </div>
-                            <h3 class="feature-title">图生图</h3>
-                            <p class="feature-desc">上传参考图片，通过文字描述引导 AI 进行风格转换或细节重构。</p>
-                        </div>
-                        <div class="feature-card" onclick="navigate('multi')">
-                            <div class="feature-icon">
-                                <i class="fas fa-layer-group"></i>
-                            </div>
-                            <h3 class="feature-title">多图融合</h3>
-                            <p class="feature-desc">融合多张图片特征，创造独特的混合风格作品。</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 文生图 -->
-                <div id="page-text2img" class="page hidden">
-                    <div class="generate-layout">
-                        <div class="input-panel">
-                            <div class="panel-header">
-                                <i class="fas fa-sliders-h"></i> 参数设置
-                            </div>
-                            
-                            <label class="form-label">图像尺寸</label>
-                            <div class="size-selector" id="t2iSizes">
-                                <div class="size-option active" data-size="1024x1024" onclick="selectSize('t2i', this)">
-                                    <span class="size-label">1:1</span>
-                                    <span class="size-value">1024²</span>
-                                </div>
-                                <div class="size-option" data-size="1792x1024" onclick="selectSize('t2i', this)">
-                                    <span class="size-label">16:9</span>
-                                    <span class="size-value">1792×1024</span>
-                                </div>
-                                <div class="size-option" data-size="1024x1792" onclick="selectSize('t2i', this)">
-                                    <span class="size-label">9:16</span>
-                                    <span class="size-value">1024×1792</span>
-                                </div>
-                                <div class="size-option" data-size="2048x2048" onclick="selectSize('t2i', this)">
-                                    <span class="size-label">2K</span>
-                                    <span class="size-value">2048²</span>
-                                </div>
-                                <div class="size-option" data-size="4096x4096" onclick="selectSize('t2i', this)">
-                                    <span class="size-label">4K</span>
-                                    <span class="size-value">4096²</span>
-                                </div>
-                            </div>
-
-                            <label class="form-label">创意描述</label>
-                            <textarea 
-                                id="t2iPrompt" 
-                                class="prompt-textarea" 
-                                placeholder="描述你想要的画面，例如：一只戴着墨镜的橘猫，赛博朋克风格，霓虹灯光，高清细节..."
-                            ></textarea>
-
-                            <button class="generate-btn" id="t2iBtn" onclick="generateText2Img()">
-                                <i class="fas fa-wand-magic-sparkles"></i> 生成图像
-                            </button>
-                        </div>
-
-                        <div class="result-panel">
-                            <div class="panel-header">
-                                <i class="fas fa-eye"></i> 预览
-                            </div>
-                            <div id="t2iResult" class="result-placeholder">
-                                <i class="fas fa-image" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
-                                <p>生成的图像将在这里预览</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 图生图 -->
-                <div id="page-img2img" class="page hidden">
-                    <div class="generate-layout">
-                        <div class="input-panel">
-                            <div class="panel-header">
-                                <i class="fas fa-sliders-h"></i> 参数设置
-                            </div>
-
-                            <label class="form-label">图像尺寸</label>
-                            <div class="size-selector" id="i2iSizes">
-                                <div class="size-option active" data-size="1024x1024" onclick="selectSize('i2i', this)">
-                                    <span class="size-label">标准</span>
-                                    <span class="size-value">1024²</span>
-                                </div>
-                                <div class="size-option" data-size="2048x2048" onclick="selectSize('i2i', this)">
-                                    <span class="size-label">2K</span>
-                                    <span class="size-value">2048²</span>
-                                </div>
-                            </div>
-
-                            <label class="form-label">上传图片</label>
-                            <div class="upload-zone" onclick="document.getElementById('i2iFile').click()">
-                                <div class="upload-icon-large">
-                                    <i class="fas fa-cloud-upload-alt"></i>
-                                </div>
-                                <p style="color: var(--text-secondary); margin-bottom: 8px;">点击或拖拽上传图片</p>
-                                <p style="font-size: 13px; color: var(--text-muted);">支持 JPG、PNG，最大 5MB</p>
-                                <input type="file" id="i2iFile" class="hidden" accept="image/*" onchange="handleI2IFile(event)">
-                            </div>
-                            <div id="i2iPreview" style="margin-top: 16px;"></div>
-
-                            <label class="form-label" style="margin-top: 20px;">修改描述</label>
-                            <textarea 
-                                id="i2iPrompt" 
-                                class="prompt-textarea" 
-                                placeholder="描述如何修改这张图片，例如：转换成赛博朋克风格，添加霓虹光效..."
-                            ></textarea>
-
-                            <button class="generate-btn" id="i2iBtn" onclick="generateImg2Img()">
-                                <i class="fas fa-wand-magic-sparkles"></i> 开始转换
-                            </button>
-                        </div>
-
-                        <div class="result-panel">
-                            <div class="panel-header">
-                                <i class="fas fa-eye"></i> 预览
-                            </div>
-                            <div id="i2iResult" class="result-placeholder">
-                                <i class="fas fa-image" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
-                                <p>处理后的图像将在这里预览</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 多图融合 -->
-                <div id="page-multi" class="page hidden">
-                    <div class="generate-layout">
-                        <div class="input-panel">
-                            <div class="panel-header">
-                                <i class="fas fa-sliders-h"></i> 参数设置
-                            </div>
-
-                            <label class="form-label">图像尺寸</label>
-                            <div class="size-selector" id="multiSizes">
-                                <div class="size-option active" data-size="1024x1024" onclick="selectSize('multi', this)">
-                                    <span class="size-label">标准</span>
-                                    <span class="size-value">1024²</span>
-                                </div>
-                                <div class="size-option" data-size="2048x2048" onclick="selectSize('multi', this)">
-                                    <span class="size-label">2K</span>
-                                    <span class="size-value">2048²</span>
-                                </div>
-                            </div>
-
-                            <label class="form-label">上传参考图（1-4张）</label>
-                            <div class="upload-zone" onclick="document.getElementById('multiFiles').click()">
-                                <div class="upload-icon-large">
-                                    <i class="fas fa-images"></i>
-                                </div>
-                                <p style="color: var(--text-secondary); margin-bottom: 8px;">选择多张图片进行融合</p>
-                                <p style="font-size: 13px; color: var(--text-muted);">支持 1-4 张图片</p>
-                                <input type="file" id="multiFiles" class="hidden" accept="image/*" multiple onchange="handleMultiFiles(event)">
-                            </div>
-                            <div id="multiPreview" style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;"></div>
-
-                            <label class="form-label" style="margin-top: 20px;">融合描述</label>
-                            <textarea 
-                                id="multiPrompt" 
-                                class="prompt-textarea" 
-                                placeholder="描述融合效果，例如：结合图1的色调和图2的构图，生成..."
-                            ></textarea>
-
-                            <button class="generate-btn" id="multiBtn" onclick="generateMulti()">
-                                <i class="fas fa-layer-group"></i> 融合生成
-                            </button>
-                        </div>
-
-                        <div class="result-panel">
-                            <div class="panel-header">
-                                <i class="fas fa-eye"></i> 预览
-                            </div>
-                            <div id="multiResult" class="result-placeholder">
-                                <i class="fas fa-image" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
-                                <p>融合结果将在这里预览</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- API设置 -->
-                <div id="page-settings" class="page hidden">
-                    <div class="settings-grid">
-                        <div class="setting-card">
-                            <h3><i class="fas fa-plus-circle" style="color: var(--primary);"></i> 添加配置</h3>
-                            <div style="margin-top: 20px;">
-                                <div class="form-group">
-                                    <label class="form-label">配置名称</label>
-                                    <input type="text" id="apiName" class="form-input" placeholder="例如：我的OpenAI">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">API URL</label>
-                                    <input type="text" id="apiUrl" class="form-input" placeholder="https://api...">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">API Key</label>
-                                    <input type="password" id="apiKey" class="form-input" placeholder="sk-...">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">模型</label>
-                                    <input type="text" id="apiModel" class="form-input" placeholder="dall-e-3">
-                                </div>
-                                <button class="btn-primary" onclick="saveApiConfig()" style="margin-top: 10px;">
-                                    保存配置
+                            <h2 class="hero-title">释放你的创造力</h2>
+                            <p class="hero-subtitle">
+                                配置你的专属 API，开始专业级 AI 图像创作之旅
+                            </p>
+                            <div class="hero-actions">
+                                <button class="btn-large btn-glow" onclick="navigate('text2img')">
+                                    <i class="fas fa-wand-magic-sparkles"></i> 开始创作
+                                </button>
+                                <button class="btn-large btn-outline" onclick="navigate('settings')">
+                                    <i class="fas fa-cog"></i> 配置 API
                                 </button>
                             </div>
                         </div>
 
-                        <div class="setting-card" style="grid-column: span 2;">
-                            <h3><i class="fas fa-list" style="color: var(--primary);"></i> 我的配置</h3>
-                            <div id="apiList" style="margin-top: 20px;">
-                                <p style="color: var(--text-muted); text-align: center; padding: 40px;">暂无配置</p>
+                        <div class="features-grid">
+                            <div class="feature-card" onclick="navigate('text2img')">
+                                <div class="feature-icon">
+                                    <i class="fas fa-pen-nib"></i>
+                                </div>
+                                <h3>文生图</h3>
+                                <p>输入文字描述，AI 为你生成精美图像。支持多种分辨率。</p>
+                            </div>
+                            <div class="feature-card" onclick="navigate('img2img')">
+                                <div class="feature-icon">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                                <h3>图生图</h3>
+                                <p>上传参考图片，通过文字描述引导 AI 进行风格转换。</p>
+                            </div>
+                            <div class="feature-card" onclick="navigate('multi')">
+                                <div class="feature-icon">
+                                    <i class="fas fa-layer-group"></i>
+                                </div>
+                                <h3>多图融合</h3>
+                                <p>融合多张图片特征，创造独特的混合风格作品。</p>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- 历史记录 -->
-                <div id="page-gallery" class="page hidden">
-                    <div class="gallery-grid" id="galleryGrid">
-                        <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);">
-                            <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 16px;"></i>
-                            <p>加载中...</p>
+                    <!-- 文生图 -->
+                    <div id="page-text2img" class="page hidden">
+                        <div class="generate-layout">
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <i class="fas fa-sliders-h"></i> 参数设置
+                                </div>
+                                <div class="panel-body">
+                                    <label class="form-label">图像尺寸</label>
+                                    <div class="size-selector" id="t2iSizes">
+                                        <div class="size-option active" data-size="1024x1024" onclick="selectSize('t2i', this)">
+                                            <span class="size-label">1:1</span>
+                                            <span class="size-value">1024²</span>
+                                        </div>
+                                        <div class="size-option" data-size="1792x1024" onclick="selectSize('t2i', this)">
+                                            <span class="size-label">16:9</span>
+                                            <span class="size-value">1792×1024</span>
+                                        </div>
+                                        <div class="size-option" data-size="1024x1792" onclick="selectSize('t2i', this)">
+                                            <span class="size-label">9:16</span>
+                                            <span class="size-value">1024×1792</span>
+                                        </div>
+                                    </div>
+
+                                    <label class="form-label">创意描述</label>
+                                    <textarea id="t2iPrompt" class="prompt-input" placeholder="描述你想要的画面，例如：一只戴着墨镜的橘猫，赛博朋克风格，霓虹灯光，高清细节..."></textarea>
+
+                                    <button class="generate-btn" id="t2iBtn" onclick="generateText2Img()">
+                                        <i class="fas fa-wand-magic-sparkles"></i> 生成图像
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <i class="fas fa-eye"></i> 预览
+                                </div>
+                                <div class="panel-body">
+                                    <div id="t2iResult" class="result-area">
+                                        <div class="result-placeholder">
+                                            <i class="fas fa-image"></i>
+                                            <p>生成的图像将在这里预览</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 图生图 -->
+                    <div id="page-img2img" class="page hidden">
+                        <div class="generate-layout">
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <i class="fas fa-sliders-h"></i> 参数设置
+                                </div>
+                                <div class="panel-body">
+                                    <label class="form-label">图像尺寸</label>
+                                    <div class="size-selector" id="i2iSizes">
+                                        <div class="size-option active" data-size="1024x1024" onclick="selectSize('i2i', this)">
+                                            <span class="size-label">标准</span>
+                                            <span class="size-value">1024²</span>
+                                        </div>
+                                        <div class="size-option" data-size="2048x2048" onclick="selectSize('i2i', this)">
+                                            <span class="size-label">2K</span>
+                                            <span class="size-value">2048²</span>
+                                        </div>
+                                    </div>
+
+                                    <label class="form-label">上传图片</label>
+                                    <div class="upload-zone" id="i2iUploadZone" onclick="document.getElementById('i2iFile').click()">
+                                        <div class="upload-icon">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                        </div>
+                                        <div class="upload-text">点击或拖拽上传图片</div>
+                                        <div class="upload-hint">支持 JPG、PNG，最大 5MB</div>
+                                        <input type="file" id="i2iFile" class="file-input" accept="image/*" onchange="handleI2IFile(event)">
+                                    </div>
+                                    <div id="i2iPreview" class="preview-area"></div>
+
+                                    <label class="form-label" style="margin-top: 20px;">修改描述</label>
+                                    <textarea id="i2iPrompt" class="prompt-input" placeholder="描述如何修改这张图片，例如：转换成赛博朋克风格..."></textarea>
+
+                                    <button class="generate-btn" id="i2iBtn" onclick="generateImg2Img()">
+                                        <i class="fas fa-wand-magic-sparkles"></i> 开始转换
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <i class="fas fa-eye"></i> 预览
+                                </div>
+                                <div class="panel-body">
+                                    <div id="i2iResult" class="result-area">
+                                        <div class="result-placeholder">
+                                            <i class="fas fa-image"></i>
+                                            <p>处理后的图像将在这里预览</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 多图融合 -->
+                    <div id="page-multi" class="page hidden">
+                        <div class="generate-layout">
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <i class="fas fa-sliders-h"></i> 参数设置
+                                </div>
+                                <div class="panel-body">
+                                    <label class="form-label">图像尺寸</label>
+                                    <div class="size-selector" id="multiSizes">
+                                        <div class="size-option active" data-size="1024x1024" onclick="selectSize('multi', this)">
+                                            <span class="size-label">标准</span>
+                                            <span class="size-value">1024²</span>
+                                        </div>
+                                        <div class="size-option" data-size="2048x2048" onclick="selectSize('multi', this)">
+                                            <span class="size-label">2K</span>
+                                            <span class="size-value">2048²</span>
+                                        </div>
+                                    </div>
+
+                                    <label class="form-label">上传参考图（1-4张）</label>
+                                    <div class="upload-zone" id="multiUploadZone" onclick="document.getElementById('multiFiles').click()">
+                                        <div class="upload-icon">
+                                            <i class="fas fa-images"></i>
+                                        </div>
+                                        <div class="upload-text">点击或拖拽上传多张图片</div>
+                                        <div class="upload-hint">支持 1-4 张图片</div>
+                                        <input type="file" id="multiFiles" class="file-input" accept="image/*" multiple onchange="handleMultiFiles(event)">
+                                    </div>
+                                    <div id="multiPreview" class="preview-area"></div>
+
+                                    <label class="form-label" style="margin-top: 20px;">融合描述</label>
+                                    <textarea id="multiPrompt" class="prompt-input" placeholder="描述融合效果..."></textarea>
+
+                                    <button class="generate-btn" id="multiBtn" onclick="generateMulti()">
+                                        <i class="fas fa-layer-group"></i> 融合生成
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <i class="fas fa-eye"></i> 预览
+                                </div>
+                                <div class="panel-body">
+                                    <div id="multiResult" class="result-area">
+                                        <div class="result-placeholder">
+                                            <i class="fas fa-image"></i>
+                                            <p>融合结果将在这里预览</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API设置 -->
+                    <div id="page-settings" class="page hidden">
+                        <div class="settings-grid">
+                            <div class="setting-card">
+                                <h3><i class="fas fa-star" style="color: var(--primary);"></i> 推荐供应商</h3>
+                                <div id="providerList" style="margin-top: 20px;">
+                                    <!-- 动态加载 -->
+                                </div>
+                            </div>
+
+                            <div class="setting-card">
+                                <h3><i class="fas fa-plus-circle" style="color: var(--primary);"></i> 添加配置</h3>
+                                <div style="margin-top: 20px;">
+                                    <div class="form-group">
+                                        <label class="form-label">配置名称</label>
+                                        <input type="text" id="apiName" class="form-input" placeholder="例如：贞贞的AI工坊">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">API URL</label>
+                                        <input type="text" id="apiUrl" class="form-input" placeholder="https://ai.t8star.cn/v1/images/generations">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">API Key</label>
+                                        <input type="password" id="apiKey" class="form-input" placeholder="sk-...">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">模型</label>
+                                        <input type="text" id="apiModel" class="form-input" placeholder="nano-banana-2">
+                                    </div>
+                                    <button class="btn-primary" onclick="saveApiConfig()">
+                                        保存配置
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="setting-card" style="grid-column: 1 / -1;">
+                                <h3><i class="fas fa-list" style="color: var(--primary);"></i> 我的配置</h3>
+                                <div id="apiList" style="margin-top: 20px;">
+                                    <p style="color: var(--text-muted); text-align: center; padding: 40px;">暂无配置</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 历史记录 -->
+                    <div id="page-gallery" class="page hidden">
+                        <div id="galleryGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px;">
+                            <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);">
+                                <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 16px;"></i>
+                                <p>加载中...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 管理后台 -->
+                    <div id="page-admin" class="page hidden">
+                        <div class="settings-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 32px;">
+                            <div class="setting-card" style="text-align: center;">
+                                <div style="font-size: 36px; font-weight: 800; color: var(--primary-light); margin-bottom: 8px;" id="statUsers">-</div>
+                                <div style="color: var(--text-secondary); font-size: 14px;">总用户数</div>
+                            </div>
+                            <div class="setting-card" style="text-align: center;">
+                                <div style="font-size: 36px; font-weight: 800; color: var(--primary-light); margin-bottom: 8px;" id="statGens">-</div>
+                                <div style="color: var(--text-secondary); font-size: 14px;">总生成数</div>
+                            </div>
+                            <div class="setting-card" style="text-align: center;">
+                                <div style="font-size: 36px; font-weight: 800; color: var(--primary-light); margin-bottom: 8px;" id="statToday">-</div>
+                                <div style="color: var(--text-secondary); font-size: 14px;">今日生成</div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-card">
+                            <h3>用户列表</h3>
+                            <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-glass); text-align: left;">
+                                        <th style="padding: 12px; color: var(--text-secondary);">邮箱</th>
+                                        <th style="padding: 12px; color: var(--text-secondary);">角色</th>
+                                        <th style="padding: 12px; color: var(--text-secondary);">生成次数</th>
+                                        <th style="padding: 12px; color: var(--text-secondary);">注册时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminUsersList"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
-
-                <!-- 管理员 -->
-                <div id="page-admin" class="page hidden">
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-value" id="statUsers">-</div>
-                            <div class="stat-label">总用户数</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value" id="statGens">-</div>
-                            <div class="stat-label">总生成数</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value" id="statToday">-</div>
-                            <div class="stat-label">今日生成</div>
-                        </div>
-                    </div>
-
-                    <div class="setting-card">
-                        <h3>用户列表</h3>
-                        <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid var(--border-glass);">
-                                    <th style="text-align: left; padding: 12px; color: var(--text-secondary); font-weight: 500;">邮箱</th>
-                                    <th style="text-align: left; padding: 12px; color: var(--text-secondary); font-weight: 500;">角色</th>
-                                    <th style="text-align: left; padding: 12px; color: var(--text-secondary); font-weight: 500;">生成次数</th>
-                                    <th style="text-align: left; padding: 12px; color: var(--text-secondary); font-weight: 500;">注册时间</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminUsersList"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </main>
+            </main>
+        </div>
     </div>
 
     <script>
         // 状态管理
         let currentUser = null;
-        let currentPage = 'home';
         let selectedSizes = { t2i: '1024x1024', i2i: '1024x1024', multi: '1024x1024' };
         let i2iFile = null;
         let multiFiles = [];
+        let providers = [];
 
         // 初始化
-        window.onload = () => {
+        document.addEventListener('DOMContentLoaded', () => {
             checkAuth();
-        };
+            setupDragAndDrop();
+        });
 
-        // 检查登录状态（关键修复：携带cookie）
+        // 检查登录
         async function checkAuth() {
             try {
-                const res = await fetch('/api/user', {
-                    credentials: 'include'  // 确保携带session cookie
-                });
+                const res = await fetch('/api/user', { credentials: 'include' });
                 if (res.ok) {
                     currentUser = await res.json();
                     showApp();
@@ -1485,7 +1234,6 @@
             }
         }
 
-        // 显示/隐藏页面
         function showAuth() {
             document.getElementById('authPage').style.display = 'flex';
             document.getElementById('appContainer').style.display = 'none';
@@ -1493,7 +1241,7 @@
 
         function showApp() {
             document.getElementById('authPage').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'flex';
+            document.getElementById('appContainer').style.display = 'block';
         }
 
         function updateUI() {
@@ -1510,23 +1258,16 @@
         function toggleAuth(mode) {
             document.getElementById('loginForm').classList.toggle('hidden', mode !== 'login');
             document.getElementById('registerForm').classList.toggle('hidden', mode !== 'register');
-            clearAlerts();
-        }
-
-        function clearAlerts() {
-            document.querySelectorAll('.alert').forEach(el => {
-                el.classList.remove('show', 'alert-success', 'alert-error', 'alert-info');
-                el.textContent = '';
-            });
         }
 
         function showAlert(id, type, message) {
             const el = document.getElementById(id);
             el.className = `alert alert-${type} show`;
-            el.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
+            el.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+            setTimeout(() => el.classList.remove('show'), 3000);
         }
 
-        // 登录（关键修复：携带cookie）
+        // 登录
         async function handleLogin() {
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
@@ -1539,14 +1280,14 @@
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',  // 关键：携带cookie
+                    credentials: 'include',
                     body: JSON.stringify({ email, password })
                 });
 
                 const data = await res.json();
                 
                 if (data.success) {
-                    currentUser = { email, role: data.role, id: data.userId };
+                    currentUser = { email: data.email, role: data.role, id: data.userId };
                     showApp();
                     updateUI();
                     navigate('home');
@@ -1554,11 +1295,11 @@
                     showAlert('loginAlert', 'error', data.error || '登录失败');
                 }
             } catch (e) {
-                showAlert('loginAlert', 'error', '网络错误，请重试');
+                showAlert('loginAlert', 'error', '网络错误');
             }
         }
 
-        // 注册（已移除验证码，关键修复：携带cookie）
+        // 注册
         async function handleRegister() {
             const email = document.getElementById('regEmail').value;
             const password = document.getElementById('regPassword').value;
@@ -1568,18 +1309,18 @@
                 return showAlert('registerAlert', 'error', '请填写完整信息');
             }
             if (password.length < 6) {
-                return showAlert('registerAlert', 'error', '密码至少需要6位');
+                return showAlert('registerAlert', 'error', '密码至少6位');
             }
             if (password !== password2) {
-                return showAlert('registerAlert', 'error', '两次密码输入不一致');
+                return showAlert('registerAlert', 'error', '两次密码不一致');
             }
 
             try {
                 const res = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',  // 关键：携带cookie
-                    body: JSON.stringify({ email, password })  // 无验证码
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
                 });
 
                 const data = await res.json();
@@ -1591,11 +1332,11 @@
                     showAlert('registerAlert', 'error', data.error || '注册失败');
                 }
             } catch (e) {
-                showAlert('registerAlert', 'error', '网络错误，请重试');
+                showAlert('registerAlert', 'error', '网络错误');
             }
         }
 
-        // 退出（关键修复：携带cookie）
+        // 退出
         async function handleLogout() {
             await fetch('/api/logout', { credentials: 'include' });
             currentUser = null;
@@ -1605,15 +1346,18 @@
         // 页面导航
         function navigate(page) {
             // 更新导航状态
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            event?.currentTarget?.classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.page === page);
+            });
             
             // 隐藏所有页面
             document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
             
             // 显示目标页面
-            document.getElementById(`page-${page}`).classList.remove('hidden');
-            currentPage = page;
+            const targetPage = document.getElementById(`page-${page}`);
+            if (targetPage) {
+                targetPage.classList.remove('hidden');
+            }
             
             // 更新标题
             const titles = {
@@ -1629,46 +1373,97 @@
 
             // 加载数据
             if (page === 'gallery') loadHistory();
-            if (page === 'settings') loadApiList();
+            if (page === 'settings') {
+                loadProviders();
+                loadApiList();
+            }
             if (page === 'admin' && currentUser?.role === 'admin') loadAdminStats();
         }
 
         // 尺寸选择
         function selectSize(type, el) {
-            document.querySelectorAll(`#${type}Sizes .size-option`).forEach(opt => opt.classList.remove('active'));
+            const container = el.parentElement;
+            container.querySelectorAll('.size-option').forEach(opt => opt.classList.remove('active'));
             el.classList.add('active');
             selectedSizes[type] = el.dataset.size;
         }
 
-        // 文生图（关键修复：携带cookie）
+        // 设置拖拽上传（关键修复）
+        function setupDragAndDrop() {
+            ['i2iUploadZone', 'multiUploadZone'].forEach(id => {
+                const zone = document.getElementById(id);
+                if (!zone) return;
+
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    zone.addEventListener(eventName, preventDefaults, false);
+                });
+
+                function preventDefaults(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    zone.addEventListener(eventName, () => zone.classList.add('dragover'), false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    zone.addEventListener(eventName, () => zone.classList.remove('dragover'), false);
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    const dt = e.dataTransfer;
+                    const files = dt.files;
+                    
+                    if (id === 'i2iUploadZone' && files.length > 0) {
+                        handleFile(files[0], 'i2i');
+                    } else if (id === 'multiUploadZone') {
+                        handleFiles(Array.from(files).slice(0, 4), 'multi');
+                    }
+                }, false);
+            });
+        }
+
+        // 文生图
         async function generateText2Img() {
-            const prompt = document.getElementById('t2iPrompt').value;
+            const prompt = document.getElementById('t2iPrompt').value.trim();
             if (!prompt) return alert('请输入描述');
 
             const btn = document.getElementById('t2iBtn');
             const result = document.getElementById('t2iResult');
             
             btn.disabled = true;
-            btn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px;"></div> 生成中...';
-            result.innerHTML = '<div class="result-placeholder"><div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">AI正在创作中...</p></div>';
+            btn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px; margin-right: 8px;"></div> 生成中...';
+            
+            result.innerHTML = '<div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">AI正在创作中...</p>';
 
             try {
                 const res = await fetch('/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',  // 关键：携带cookie
+                    credentials: 'include',
                     body: JSON.stringify({ prompt, size: selectedSizes.t2i })
                 });
 
                 const data = await res.json();
                 
-                if (data.success) {
-                    result.innerHTML = `<img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')"><p style="margin-top: 12px; text-align: center; color: var(--text-muted); font-size: 13px;">双击图片查看原图</p>`;
+                if (data.success && data.image_url) {
+                    result.innerHTML = `
+                        <img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')" style="cursor: zoom-in;">
+                        <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; font-size: 13px; color: var(--text-secondary);">
+                            双击图片查看原图 | 右键保存
+                        </div>
+                    `;
                 } else {
-                    result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="font-size: 48px; color: var(--danger); margin-bottom: 16px;"></i><p>${data.error || '生成失败'}</p></div>`;
+                    throw new Error(data.error || '生成失败');
                 }
             } catch (e) {
-                result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="font-size: 48px; color: var(--danger); margin-bottom: 16px;"></i><p>网络错误</p></div>`;
+                result.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                        <p>${e.message || '生成失败，请检查API配置'}</p>
+                    </div>
+                `;
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> 生成图像';
@@ -1678,108 +1473,188 @@
         // 图生图文件处理
         function handleI2IFile(e) {
             const file = e.target.files[0];
-            if (!file) return;
-            i2iFile = file;
+            if (file) handleFile(file, 'i2i');
+        }
+
+        function handleFile(file, type) {
+            if (!file.type.startsWith('image/')) {
+                alert('请上传图片文件');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                alert('文件过大，最大支持5MB');
+                return;
+            }
             
+            i2iFile = file;
             const reader = new FileReader();
             reader.onload = (e) => {
-                document.getElementById('i2iPreview').innerHTML = `<img src="${e.target.result}" style="max-width: 200px; border-radius: 8px; border: 1px solid var(--border-glass);">`;
+                document.getElementById('i2iPreview').innerHTML = 
+                    `<img src="${e.target.result}" class="preview-img">`;
             };
             reader.readAsDataURL(file);
         }
 
-        // 图生图（关键修复：携带cookie）
+        // 图生图生成
         async function generateImg2Img() {
             if (!i2iFile) return alert('请先上传图片');
-            const prompt = document.getElementById('i2iPrompt').value;
 
+            const prompt = document.getElementById('i2iPrompt').value;
+            const btn = document.getElementById('i2iBtn');
+            const result = document.getElementById('i2iResult');
+            
             const formData = new FormData();
             formData.append('image', i2iFile);
             formData.append('prompt', prompt);
             formData.append('size', selectedSizes.i2i);
 
-            const btn = document.getElementById('i2iBtn');
-            const result = document.getElementById('i2iResult');
-            
             btn.disabled = true;
-            result.innerHTML = '<div class="result-placeholder"><div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">处理中...</p></div>';
+            result.innerHTML = '<div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">处理中...</p>';
 
             try {
                 const res = await fetch('/api/img2img', {
                     method: 'POST',
-                    credentials: 'include',  // 关键：携带cookie
-                    body: formData  // FormData不需要Content-Type头
+                    credentials: 'include',
+                    body: formData
                 });
 
                 const data = await res.json();
                 
-                if (data.success) {
-                    result.innerHTML = `<img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')">`;
+                if (data.success && data.image_url) {
+                    result.innerHTML = `
+                        <img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')">
+                        <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; font-size: 13px;">
+                            双击查看原图
+                        </div>
+                    `;
                 } else {
-                    result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 48px; margin-bottom: 16px;"></i><p>${data.error || '处理失败'}</p></div>`;
+                    throw new Error(data.error || '处理失败');
                 }
             } catch (e) {
-                result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 48px; margin-bottom: 16px;"></i><p>网络错误</p></div>`;
+                result.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                        <p>${e.message}</p>
+                    </div>
+                `;
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> 开始转换';
             }
         }
 
-        // 多图处理
+        // 多图文件处理
         function handleMultiFiles(e) {
-            multiFiles = Array.from(e.target.files).slice(0, 4);
+            const files = Array.from(e.target.files).slice(0, 4);
+            handleFiles(files, 'multi');
+        }
+
+        function handleFiles(files, type) {
+            multiFiles = files.filter(f => {
+                if (!f.type.startsWith('image/')) return false;
+                if (f.size > 5 * 1024 * 1024) {
+                    alert(`文件 ${f.name} 超过5MB，已跳过`);
+                    return false;
+                }
+                return true;
+            });
+
             const preview = document.getElementById('multiPreview');
             preview.innerHTML = '';
             
             multiFiles.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    preview.innerHTML += `<img src="${e.target.result}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-glass);">`;
+                    preview.innerHTML += `<img src="${e.target.result}" class="preview-img">`;
                 };
                 reader.readAsDataURL(file);
             });
         }
 
-        // 多图融合（关键修复：携带cookie）
+        // 多图融合
         async function generateMulti() {
             if (multiFiles.length === 0) return alert('请至少上传一张图片');
+
             const prompt = document.getElementById('multiPrompt').value;
+            const btn = document.getElementById('multiBtn');
+            const result = document.getElementById('multiResult');
 
             const formData = new FormData();
             multiFiles.forEach(f => formData.append('images', f));
             formData.append('prompt', prompt);
             formData.append('size', selectedSizes.multi);
 
-            const btn = document.getElementById('multiBtn');
-            const result = document.getElementById('multiResult');
-            
             btn.disabled = true;
-            result.innerHTML = '<div class="result-placeholder"><div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">融合中...</p></div>';
+            result.innerHTML = '<div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">融合中...</p>';
 
             try {
                 const res = await fetch('/api/multi-ref', {
                     method: 'POST',
-                    credentials: 'include',  // 关键：携带cookie
+                    credentials: 'include',
                     body: formData
                 });
 
                 const data = await res.json();
                 
-                if (data.success) {
-                    result.innerHTML = `<img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')">`;
+                if (data.success && data.image_url) {
+                    result.innerHTML = `
+                        <img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')">
+                        <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; font-size: 13px;">
+                            双击查看原图
+                        </div>
+                    `;
                 } else {
-                    result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 48px; margin-bottom: 16px;"></i><p>${data.error || '融合失败'}</p></div>`;
+                    throw new Error(data.error || '融合失败');
                 }
             } catch (e) {
-                result.innerHTML = `<div class="result-placeholder"><i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 48px; margin-bottom: 16px;"></i><p>网络错误</p></div>`;
+                result.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                        <p>${e.message}</p>
+                    </div>
+                `;
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-layer-group"></i> 融合生成';
             }
         }
 
-        // API设置（关键修复：携带cookie）
+        // 加载推荐供应商
+        async function loadProviders() {
+            try {
+                const res = await fetch('/api/providers');
+                providers = await res.json();
+                
+                const container = document.getElementById('providerList');
+                container.innerHTML = providers.map(p => `
+                    <div class="provider-card">
+                        <div class="provider-info">
+                            <h4>${p.name}</h4>
+                            <p>${p.description}</p>
+                            <div class="provider-meta">
+                                <i class="fas fa-link"></i> ${p.apiUrl}<br>
+                                <i class="fas fa-cube"></i> 支持模型: ${p.models.join(', ')}
+                            </div>
+                        </div>
+                        <button class="btn-primary" style="width: auto; padding: 10px 20px; font-size: 14px;" 
+                            onclick='fillProvider(${JSON.stringify(p)})'>
+                            <i class="fas fa-plus"></i> 使用此配置
+                        </button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('加载供应商失败');
+            }
+        }
+
+        function fillProvider(provider) {
+            document.getElementById('apiName').value = provider.name;
+            document.getElementById('apiUrl').value = provider.apiUrl || '';
+            document.getElementById('apiModel').value = provider.defaultModel || '';
+            document.getElementById('apiKey').focus();
+        }
+
+        // API配置管理
         async function loadApiList() {
             try {
                 const res = await fetch('/api/user/apis', { credentials: 'include' });
@@ -1787,22 +1662,24 @@
                 
                 const list = document.getElementById('apiList');
                 if (apis.length === 0) {
-                    list.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 40px;">暂无配置，请添加</p>';
+                    list.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 40px;">暂无配置，请添加或选择推荐供应商</p>';
                     return;
                 }
 
                 list.innerHTML = apis.map(api => `
                     <div class="api-item ${api.is_default ? 'active' : ''}">
                         <div>
-                            <div style="font-weight: 600; margin-bottom: 4px;">${api.name}</div>
-                            <div style="font-size: 13px; color: var(--text-muted);">${api.model}</div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">
+                                ${api.name}
+                                ${api.is_default ? '<span class="badge badge-primary" style="margin-left: 8px;">默认</span>' : ''}
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-muted);">
+                                ${api.model} | ${api.api_url}
+                            </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            ${api.is_default ? '<span class="badge badge-primary">默认</span>' : ''}
-                            <button onclick="deleteApi(${api.id})" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer;">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
+                        <button onclick="deleteApi(${api.id})" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 8px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 `).join('');
             } catch (e) {
@@ -1816,14 +1693,22 @@
             const api_key = document.getElementById('apiKey').value;
             const model = document.getElementById('apiModel').value;
 
-            if (!name || !api_url || !api_key) return alert('请填写完整信息');
+            if (!name || !api_url || !api_key) {
+                return alert('请填写完整信息');
+            }
 
             try {
                 const res = await fetch('/api/user/apis', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',  // 关键：携带cookie
-                    body: JSON.stringify({ name, api_url, api_key, model, provider_id: 'custom', is_default: true })
+                    credentials: 'include',
+                    body: JSON.stringify({ 
+                        name, 
+                        api_url, 
+                        api_key, 
+                        model: model || 'dall-e-3', 
+                        is_default: true 
+                    })
                 });
 
                 const data = await res.json();
@@ -1849,7 +1734,7 @@
             try {
                 const res = await fetch(`/api/user/apis/${id}`, {
                     method: 'DELETE',
-                    credentials: 'include'  // 关键：携带cookie
+                    credentials: 'include'
                 });
                 
                 if (res.ok) {
@@ -1862,24 +1747,31 @@
             }
         }
 
-        // 历史记录（关键修复：携带cookie）
+        // 历史记录
         async function loadHistory() {
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i></div>';
+            
             try {
                 const res = await fetch('/api/history?page=1&limit=20', { credentials: 'include' });
                 const items = await res.json();
                 
-                const grid = document.getElementById('galleryGrid');
                 if (items.length === 0) {
                     grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);">暂无创作记录</div>';
                     return;
                 }
 
                 grid.innerHTML = items.map(item => `
-                    <div class="gallery-item">
-                        ${item.image_url ? `<img src="${item.image_url}" class="gallery-img" loading="lazy">` : '<div class="gallery-img" style="display: flex; align-items: center; justify-content: center; color: var(--text-muted);">生成失败</div>'}
-                        <div class="gallery-info">
-                            <div class="gallery-prompt">${item.prompt || '无描述'}</div>
-                            <div class="gallery-meta">
+                    <div class="gallery-item" style="background: var(--bg-card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-glass);">
+                        ${item.image_url ? 
+                            `<img src="${item.image_url}" style="width: 100%; height: 240px; object-fit: cover; background: #000;" loading="lazy">` : 
+                            '<div style="width: 100%; height: 240px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); background: rgba(0,0,0,0.3);">生成失败</div>'
+                        }
+                        <div style="padding: 16px;">
+                            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                ${item.prompt || '无描述'}
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted);">
                                 <span class="badge badge-primary">${item.size}</span>
                                 <span>${new Date(item.created_at).toLocaleDateString()}</span>
                             </div>
@@ -1887,11 +1779,11 @@
                     </div>
                 `).join('');
             } catch (e) {
-                document.getElementById('galleryGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--danger);">加载失败</div>';
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--danger);">加载失败</div>';
             }
         }
 
-        // 管理员统计（关键修复：携带cookie）
+        // 管理员统计
         async function loadAdminStats() {
             try {
                 const [statsRes, usersRes] = await Promise.all([
@@ -1909,8 +1801,12 @@
                 document.getElementById('adminUsersList').innerHTML = users.map(u => `
                     <tr style="border-bottom: 1px solid var(--border-glass);">
                         <td style="padding: 12px;">${u.email}</td>
-                        <td style="padding: 12px;"><span class="badge ${u.role === 'admin' ? 'badge-primary' : ''}">${u.role}</span></td>
-                        <td style="padding: 12px;">${u.total_generations}</td>
+                        <td style="padding: 12px;">
+                            <span class="badge ${u.role === 'admin' ? 'badge-primary' : ''}" style="background: ${u.role === 'admin' ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.1)'};">
+                                ${u.role}
+                            </span>
+                        </td>
+                        <td style="padding: 12px;">${u.total_generations || 0}</td>
                         <td style="padding: 12px; color: var(--text-muted);">${new Date(u.created_at).toLocaleDateString()}</td>
                     </tr>
                 `).join('');
