@@ -6,27 +6,24 @@ const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
 const axios = require('axios');
-const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const FormData = require('form-data');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ==================== 关键修复 1: 信任反向代理 ====================
+// ==================== 核心配置 ====================
 app.set('trust proxy', 1);
 
-// 确保上传目录存在
+// 上传目录
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// 配置 multer
+// Multer配置
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
+  destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
@@ -39,109 +36,57 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('.'));
 app.use('/uploads', express.static(uploadDir));
 
-// ==================== 关键修复 2: Session 配置 ====================
+// Session配置（生产环境优化）
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-
-// 判断是否在 Railway 环境（有 RAILWAY_STATIC_URL 或 RAILWAY_PUBLIC_DOMAIN）
-const isRailway = process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
-
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  name: 'sessionId', // 自定义 cookie 名称，避免冲突
+  name: 'sessionId',
   cookie: { 
-    secure: false, // 必须为 false，Railway 使用反向代理
+    secure: false,
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24小时
+    maxAge: 24 * 60 * 60 * 1000,
     sameSite: 'lax',
     path: '/'
   },
-  rolling: true // 每次请求刷新过期时间
+  rolling: true
 }));
 
-// 数据库配置
+// ==================== 数据库配置 ====================
 let DB_PATH = process.env.DB_PATH || './data.sqlite';
 const dataDir = path.dirname(DB_PATH);
 
 if (dataDir !== '.' && !fs.existsSync(dataDir)) {
   try {
     fs.mkdirSync(dataDir, { recursive: true });
-    console.log('✓ 数据库目录已创建:', dataDir);
   } catch (err) {
-    console.error('✗ 创建数据库目录失败:', err.message);
     DB_PATH = './data.sqlite';
-    console.log('⚠ 改用当前目录:', DB_PATH);
   }
 }
-
-console.log('数据库路径:', path.resolve(DB_PATH));
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.error('数据库连接失败:', err.message);
-    process.exit(1); // 数据库连接失败则退出
-  } else {
-    console.log('✓ 数据库连接成功');
+    process.exit(1);
   }
 });
-
-// 邮件配置
-const SMTP_CONFIG = {
-  host: process.env.SMTP_HOST || 'smtp.163.com',
-  port: parseInt(process.env.SMTP_PORT) || 465,
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || ''
-  }
-};
-
-const mailTransporter = SMTP_CONFIG.auth.user ? nodemailer.createTransport(SMTP_CONFIG) : null;
-
-// 内置API供应商配置
-const BUILT_IN_PROVIDERS = [
-  {
-    id: 't8star',
-    name: '贞贞的AI工坊',
-    description: '稳定的AI图像生成服务',
-    website: 'https://ai.t8star.cn/login',
-    baseUrl: 'https://ai.t8star.cn/v1/images/generations',
-    models: ['nano-banana-2', 'gemini-2-5-flash-image-preview'],
-    docs: 'https://ai.t8star.cn'
-  },
-  {
-    id: 'sillydream',
-    name: 'SillyDream',
-    description: '高性价比的AI图像生成API',
-    website: 'https://wish.sillydream.top/register?aff=iFev',
-    baseUrl: 'https://wish.sillydream.top/v1/images/generations',
-    models: ['dall-e-3', 'gpt-4o-image', 'midjourney-v6'],
-    docs: 'https://wish.sillydream.top/docs'
-  }
-];
 
 // ==================== 数据库初始化 ====================
 function initDatabase() {
   return new Promise((resolve, reject) => {
-    console.log('开始初始化数据库...');
-    
     db.serialize(() => {
       // 用户表
       db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        email_verified INTEGER DEFAULT 0,
-        verification_token TEXT,
+        email_verified INTEGER DEFAULT 1,
         role TEXT DEFAULT 'user',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`, (err) => {
-        if (err) console.error('✗ 创建用户表失败:', err.message);
-        else console.log('✓ 用户表已就绪');
-      });
+      )`);
 
-      // API配置表
+      // API配置表（严格用户隔离）
       db.run(`CREATE TABLE IF NOT EXISTS api_configs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -152,30 +97,13 @@ function initDatabase() {
         model TEXT DEFAULT 'dall-e-3',
         is_default INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-      )`, (err) => {
-        if (err) console.error('✗ 创建API配置表失败:', err.message);
-        else console.log('✓ API配置表已就绪');
-      });
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )`);
 
-      // 邮箱验证表
-      db.run(`CREATE TABLE IF NOT EXISTS email_verifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT NOT NULL,
-        code TEXT NOT NULL,
-        type TEXT NOT NULL,
-        expires_at DATETIME NOT NULL,
-        used INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`, (err) => {
-        if (err) console.error('✗ 创建验证表失败:', err.message);
-        else console.log('✓ 验证表已就绪');
-      });
-
-      // 生成记录表
+      // 生成记录表（严格用户隔离）
       db.run(`CREATE TABLE IF NOT EXISTS generations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
+        user_id INTEGER NOT NULL,
         prompt TEXT,
         image_url TEXT,
         size TEXT DEFAULT '1024x1024',
@@ -184,47 +112,34 @@ function initDatabase() {
         status TEXT,
         error_msg TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-      )`, (err) => {
-        if (err) console.error('✗ 创建记录表失败:', err.message);
-        else console.log('✓ 生成记录表已就绪');
-      });
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )`);
 
       // 创建默认管理员
       const adminEmail = process.env.ADMIN_EMAIL || 'admin@banana.ai';
-      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-      const adminPass = bcrypt.hashSync(adminPassword, 8);
+      const adminPass = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'admin123', 8);
       
       db.run(`INSERT OR IGNORE INTO users (id, email, password, email_verified, role) 
               VALUES (1, ?, ?, 1, 'admin')`, [adminEmail, adminPass], function(err) {
-        if (err) {
-          console.error('✗ 创建管理员失败:', err.message);
-        } else {
-          if (this.changes > 0) {
-            console.log('✓ 默认管理员已创建:', adminEmail);
-          } else {
-            console.log('✓ 管理员已存在');
-          }
+        if (this.changes > 0) {
+          console.log('✓ 管理员已创建:', adminEmail);
         }
-        console.log('数据库初始化完成');
         resolve();
       });
     });
   });
 }
 
-// 立即执行初始化
 initDatabase().then(() => {
-  console.log('✓ 系统初始化成功');
+  console.log('✓ 数据库初始化完成');
 }).catch(err => {
-  console.error('✗ 数据库初始化失败:', err);
+  console.error('✗ 初始化失败:', err);
   process.exit(1);
 });
 
-// ==================== 中间件 ====================
+// ==================== 权限中间件 ====================
 const requireAuth = (req, res, next) => {
   if (!req.session.userId) {
-    console.log('未登录访问:', req.path);
     return res.status(401).json({ error: '未登录' });
   }
   next();
@@ -237,239 +152,134 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// 发送邮件函数
-async function sendEmail(to, subject, html) {
-  if (!mailTransporter) {
-    console.log(`[邮件模拟] 发送到: ${to}\n主题: ${subject}`);
-    return { success: true, preview: true };
-  }
-  
-  try {
-    await mailTransporter.sendMail({
-      from: `"香蕉AI" <${SMTP_CONFIG.auth.user}>`,
-      to,
-      subject,
-      html
-    });
-    return { success: true };
-  } catch (error) {
-    console.error('邮件发送失败:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-function generateCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-// 定期清理过期验证码
-setInterval(() => {
-  db.run(`DELETE FROM email_verifications WHERE expires_at < datetime('now') OR used = 1`);
-}, 3600000);
-
 // ==================== 路由 ====================
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
 
 // 健康检查
 app.get('/api/health', (req, res) => {
-  const dbExists = fs.existsSync(DB_PATH);
   res.json({ 
     status: 'ok', 
-    db_connected: dbExists,
-    db_path: DB_PATH,
-    session_user: req.session.userId || null,
+    user: req.session.userId || null,
     time: new Date().toISOString() 
   });
 });
 
-// 获取内置供应商列表
+// 内置供应商
 app.get('/api/providers', (req, res) => {
-  res.json(BUILT_IN_PROVIDERS);
+  res.json([
+    {
+      id: 't8star',
+      name: '贞贞的AI工坊',
+      description: '稳定的AI图像生成服务',
+      website: 'https://ai.t8star.cn/login',
+      baseUrl: 'https://ai.t8star.cn/v1/images/generations',
+      models: ['nano-banana-2', 'gemini-2-5-flash-image-preview']
+    },
+    {
+      id: 'sillydream',
+      name: 'SillyDream',
+      description: '高性价比的AI图像生成API',
+      website: 'https://wish.sillydream.top/register?aff=iFev',
+      baseUrl: 'https://wish.sillydream.top/v1/images/generations',
+      models: ['dall-e-3', 'gpt-4o-image', 'midjourney-v6']
+    }
+  ]);
 });
 
-// 发送注册验证码
-app.post('/api/auth/send-code', async (req, res) => {
-  const { email, type = 'register' } = req.body;
-  
-  if (!email || !email.includes('@')) {
-    return res.json({ error: '请输入有效的邮箱地址' });
-  }
-  
-  if (type === 'register') {
-    const existing = await new Promise((resolve) => {
-      db.get('SELECT id FROM users WHERE email = ?', [email], (err, row) => resolve(row));
-    });
-    if (existing) return res.json({ error: '该邮箱已被注册' });
-  }
-  
-  const code = generateCode();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  
-  db.run(`INSERT INTO email_verifications (email, code, type, expires_at) VALUES (?, ?, ?, ?)`,
-    [email, code, type, expiresAt],
-    async function(err) {
-      if (err) return res.json({ error: '发送失败' });
-      
-      const result = await sendEmail(
-        email,
-        '香蕉AI - 验证码',
-        `<div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; color: #333;">
-          <h2 style="color: #f59e0b;">香蕉AI 验证码</h2>
-          <p>您的验证码是：</p>
-          <div style="font-size: 32px; font-weight: bold; color: #f59e0b; padding: 20px; background: #f5f5f5; text-align: center; border-radius: 8px; margin: 20px 0;">
-            ${code}
-          </div>
-          <p>此验证码10分钟内有效，请勿泄露给他人。</p>
-        </div>`
-      );
-      
-      if (result.success) {
-        if (result.preview) {
-          res.json({ success: true, preview: true, code: code, msg: '开发模式：验证码已打印到控制台' });
-        } else {
-          res.json({ success: true, msg: '验证码已发送到您的邮箱' });
-        }
-      } else {
-        res.json({ error: '邮件发送失败，请稍后重试' });
-      }
-    });
-});
+// ==================== 认证接口（简化版，无验证码） ====================
 
-// 注册
+// 注册（无验证码）
 app.post('/api/auth/register', (req, res) => {
-  const { email, password, code } = req.body;
+  const { email, password } = req.body;
   
-  if (!email || !password || !code) {
-    return res.json({ error: '请填写完整信息' });
+  if (!email || !email.includes('@') || !password || password.length < 6) {
+    return res.status(400).json({ error: '请输入有效邮箱和密码（至少6位）' });
   }
   
-  db.get(`SELECT * FROM email_verifications 
-          WHERE email = ? AND code = ? AND type = 'register' AND used = 0 AND expires_at > datetime('now')
-          ORDER BY id DESC LIMIT 1`,
-    [email, code],
-    function(err, record) {
-      if (err || !record) {
-        return res.json({ error: '验证码错误或已过期' });
-      }
-      
-      db.run('UPDATE email_verifications SET used = 1 WHERE id = ?', [record.id]);
-      
-      const hash = bcrypt.hashSync(password, 8);
-      db.run('INSERT INTO users (email, password, email_verified) VALUES (?, ?, 1)', 
-        [email, hash],
-        function(err) {
-          if (err) return res.json({ error: '注册失败，邮箱可能已被使用' });
-          
-          db.run(`INSERT INTO api_configs (user_id, provider_id, name, api_url, api_key, model, is_default) 
-                  VALUES (?, 't8star', '贞贞的AI工坊', 'https://ai.t8star.cn/v1/images/generations', '', 'nano-banana-2', 1)`,
-            [this.lastID]);
-          
-          res.json({ success: true, msg: '注册成功' });
-        });
-    });
+  db.get('SELECT id FROM users WHERE email = ?', [email], (err, existing) => {
+    if (err) return res.status(500).json({ error: '系统错误' });
+    if (existing) return res.status(400).json({ error: '该邮箱已被注册' });
+    
+    const hash = bcrypt.hashSync(password, 10);
+    db.run('INSERT INTO users (email, password, email_verified) VALUES (?, ?, 1)', 
+      [email, hash],
+      function(err) {
+        if (err) return res.status(500).json({ error: '注册失败' });
+        res.json({ success: true, msg: '注册成功，请登录', userId: this.lastID });
+      });
+  });
 });
 
-// ==================== 关键修复 3: 登录接口增强日志 ====================
+// 登录
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
   
-  console.log('登录尝试:', email, '| SessionID:', req.sessionID);
-  
   if (!email || !password) {
-    return res.json({ error: '请输入邮箱和密码' });
+    return res.status(400).json({ error: '请输入邮箱和密码' });
   }
   
   db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-    if (err) {
-      console.error('登录查询错误:', err);
-      return res.json({ error: '系统错误' });
+    if (err) return res.status(500).json({ error: '系统错误' });
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ error: '邮箱或密码错误' });
     }
     
-    if (!user) {
-      console.log('用户不存在:', email);
-      return res.json({ error: '邮箱或密码错误' });
-    }
-    
-    const isValidPassword = bcrypt.compareSync(password, user.password);
-    if (!isValidPassword) {
-      console.log('密码错误:', email);
-      return res.json({ error: '邮箱或密码错误' });
-    }
-    
-    if (!user.email_verified && user.role !== 'admin') {
-      return res.json({ error: '请先验证邮箱', needVerify: true });
-    }
-    
-    // 设置 session
     req.session.userId = user.id;
     req.session.role = user.role;
-    req.session.email = user.email;
     
-    console.log('登录成功:', email, '| Session 设置:', req.session.userId);
-    
-    // 保存 session
     req.session.save((err) => {
-      if (err) {
-        console.error('Session 保存失败:', err);
-        return res.json({ error: '登录失败，请重试' });
-      }
-      
+      if (err) return res.status(500).json({ error: '登录失败' });
       res.json({ success: true, role: user.role, userId: user.id });
     });
   });
 });
 
-// 获取用户信息
-app.get('/api/user', requireAuth, (req, res) => {
-  console.log('获取用户信息:', req.session.userId);
-  db.get('SELECT id, email, role, created_at FROM users WHERE id = ?', 
-    [req.session.userId], (err, user) => {
-      if (err || !user) {
-        console.error('查询用户信息失败:', err);
-        return res.status(500).json({ error: '查询失败' });
-      }
-      res.json(user);
-    });
-});
-
 // 退出
 app.get('/api/logout', (req, res) => {
   req.session.destroy((err) => {
-    if (err) {
-      console.error('退出失败:', err);
-      return res.json({ error: '退出失败' });
-    }
+    if (err) return res.status(500).json({ error: '退出失败' });
     res.clearCookie('sessionId');
     res.json({ success: true });
   });
 });
 
-// API配置管理
+// 获取当前用户
+app.get('/api/user', requireAuth, (req, res) => {
+  db.get('SELECT id, email, role, created_at FROM users WHERE id = ?', 
+    [req.session.userId], (err, user) => {
+      if (err || !user) return res.status(500).json({ error: '查询失败' });
+      res.json(user);
+    });
+});
+
+// ==================== API配置（严格用户隔离） ====================
+
+// 获取我的API配置
 app.get('/api/user/apis', requireAuth, (req, res) => {
-  db.all('SELECT * FROM api_configs WHERE user_id = ? ORDER BY is_default DESC', 
+  db.all('SELECT * FROM api_configs WHERE user_id = ? ORDER BY is_default DESC, created_at DESC', 
     [req.session.userId], (err, rows) => {
       if (err) return res.status(500).json({ error: '查询失败' });
       res.json(rows);
     });
 });
 
+// 添加API配置
 app.post('/api/user/apis', requireAuth, (req, res) => {
   const { provider_id, name, api_url, api_key, model, is_default } = req.body;
   
   if (!name || !api_url || !api_key) {
-    return res.json({ error: '请填写完整信息' });
+    return res.status(400).json({ error: '请填写完整信息' });
   }
+  
+  const userId = req.session.userId;
   
   db.serialize(() => {
     if (is_default) {
-      db.run('UPDATE api_configs SET is_default = 0 WHERE user_id = ?', [req.session.userId]);
+      db.run('UPDATE api_configs SET is_default = 0 WHERE user_id = ?', [userId]);
     }
     
     db.run(`INSERT INTO api_configs (user_id, provider_id, name, api_url, api_key, model, is_default) 
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [req.session.userId, provider_id || 'custom', name, api_url, api_key, model || 'dall-e-3', is_default ? 1 : 0],
+      [userId, provider_id || 'custom', name, api_url, api_key, model || 'dall-e-3', is_default ? 1 : 0],
       function(err) {
         if (err) return res.status(500).json({ error: '保存失败' });
         res.json({ success: true, id: this.lastID });
@@ -477,34 +287,40 @@ app.post('/api/user/apis', requireAuth, (req, res) => {
   });
 });
 
+// 更新API配置
 app.put('/api/user/apis/:id', requireAuth, (req, res) => {
   const { name, api_url, api_key, model, is_default } = req.body;
+  const userId = req.session.userId;
   
   db.serialize(() => {
     if (is_default) {
-      db.run('UPDATE api_configs SET is_default = 0 WHERE user_id = ?', [req.session.userId]);
+      db.run('UPDATE api_configs SET is_default = 0 WHERE user_id = ?', [userId]);
     }
     
     db.run(`UPDATE api_configs SET name = ?, api_url = ?, api_key = ?, model = ?, is_default = ? 
             WHERE id = ? AND user_id = ?`,
-      [name, api_url, api_key, model, is_default ? 1 : 0, req.params.id, req.session.userId],
+      [name, api_url, api_key, model, is_default ? 1 : 0, req.params.id, userId],
       function(err) {
         if (err) return res.status(500).json({ error: '更新失败' });
+        if (this.changes === 0) return res.status(403).json({ error: '无权修改' });
         res.json({ success: true });
       });
   });
 });
 
+// 删除API配置
 app.delete('/api/user/apis/:id', requireAuth, (req, res) => {
   db.run('DELETE FROM api_configs WHERE id = ? AND user_id = ?', 
     [req.params.id, req.session.userId],
     function(err) {
       if (err) return res.status(500).json({ error: '删除失败' });
+      if (this.changes === 0) return res.status(403).json({ error: '无权删除' });
       res.json({ success: true });
     });
 });
 
-app.get('/api/user/apis/default', requireAuth, async (req, res) => {
+// 获取默认配置
+app.get('/api/user/apis/default', requireAuth, (req, res) => {
   db.get('SELECT * FROM api_configs WHERE user_id = ? AND is_default = 1 LIMIT 1',
     [req.session.userId], (err, row) => {
       if (err) return res.status(500).json({ error: '查询失败' });
@@ -513,29 +329,29 @@ app.get('/api/user/apis/default', requireAuth, async (req, res) => {
     });
 });
 
+// ==================== 图像生成（严格用户隔离） ====================
+
 // 文生图
 app.post('/api/generate', requireAuth, async (req, res) => {
   const { prompt, size = '1024x1024' } = req.body;
+  const userId = req.session.userId;
   
   const config = await new Promise((resolve) => {
     db.get('SELECT * FROM api_configs WHERE user_id = ? AND is_default = 1 LIMIT 1',
-      [req.session.userId], (err, row) => resolve(row));
+      [userId], (err, row) => resolve(row));
   });
   
-  if (!config) return res.json({ error: '请先配置默认API' });
-  if (!config.api_key) return res.json({ error: 'API Key为空，请先配置' });
+  if (!config) return res.status(400).json({ error: '请先配置默认API' });
+  if (!config.api_key) return res.status(400).json({ error: 'API Key为空' });
   
   try {
-    const validSizes = ['512x512', '1024x1024', '1792x1024', '1024x1792', '2048x2048', '4096x4096', '3840x2160'];
-    const finalSize = validSizes.includes(size) ? size : '1024x1024';
-    
     const response = await axios.post(
       config.api_url,
       {
         model: config.model || 'dall-e-3',
         prompt: prompt,
         n: 1,
-        size: finalSize
+        size: size
       },
       {
         headers: {
@@ -549,29 +365,30 @@ app.post('/api/generate', requireAuth, async (req, res) => {
     const imageUrl = response.data.data?.[0]?.url;
     
     db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.session.userId, prompt, imageUrl, finalSize, 'text2img', config.name, 'success']);
+      [userId, prompt, imageUrl, size, 'text2img', config.name, 'success']);
     
-    res.json({ success: true, image_url: imageUrl, size: finalSize });
+    res.json({ success: true, image_url: imageUrl, size });
   } catch (error) {
     const errorMsg = error.response?.data?.error?.message || error.message;
     db.run('INSERT INTO generations (user_id, prompt, size, type, status, error_msg) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.session.userId, prompt, size, 'text2img', 'failed', errorMsg]);
-    res.json({ error: '生成失败', detail: errorMsg });
+      [userId, prompt, size, 'text2img', 'failed', errorMsg]);
+    res.status(500).json({ error: '生成失败', detail: errorMsg });
   }
 });
 
 // 图生图
 app.post('/api/img2img', requireAuth, upload.single('image'), async (req, res) => {
   const { prompt, size = '1024x1024' } = req.body;
+  const userId = req.session.userId;
   
   const config = await new Promise((resolve) => {
     db.get('SELECT * FROM api_configs WHERE user_id = ? AND is_default = 1 LIMIT 1',
-      [req.session.userId], (err, row) => resolve(row));
+      [userId], (err, row) => resolve(row));
   });
   
   if (!config || !config.api_key) {
     if (req.file) fs.unlinkSync(path.join(__dirname, req.file.path));
-    return res.json({ error: '请先配置API' });
+    return res.status(400).json({ error: '请先配置API' });
   }
   
   try {
@@ -596,28 +413,28 @@ app.post('/api/img2img', requireAuth, upload.single('image'), async (req, res) =
     fs.unlinkSync(path.join(__dirname, req.file.path));
     
     db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.session.userId, prompt, imageUrl, size, 'img2img', config.name, 'success']);
+      [userId, prompt, imageUrl, size, 'img2img', config.name, 'success']);
     
     res.json({ success: true, image_url: imageUrl });
   } catch (error) {
     if (req.file) fs.unlinkSync(path.join(__dirname, req.file.path));
-    const errorMsg = error.response?.data?.error?.message || error.message;
-    res.json({ error: '生成失败', detail: errorMsg });
+    res.status(500).json({ error: '生成失败', detail: error.message });
   }
 });
 
 // 多图参考
 app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, res) => {
   const { prompt, size = '1024x1024' } = req.body;
+  const userId = req.session.userId;
   
   const config = await new Promise((resolve) => {
     db.get('SELECT * FROM api_configs WHERE user_id = ? AND is_default = 1 LIMIT 1',
-      [req.session.userId], (err, row) => resolve(row));
+      [userId], (err, row) => resolve(row));
   });
   
   if (!config || !config.api_key) {
     req.files?.forEach(file => fs.unlinkSync(path.join(__dirname, file.path)));
-    return res.json({ error: '请先配置API' });
+    return res.status(400).json({ error: '请先配置API' });
   }
   
   try {
@@ -644,19 +461,19 @@ app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, r
     req.files.forEach(file => fs.unlinkSync(path.join(__dirname, file.path)));
     
     db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.session.userId, prompt, imageUrl, size, 'multi-ref', config.name, 'success']);
+      [userId, prompt, imageUrl, size, 'multi-ref', config.name, 'success']);
     
     res.json({ success: true, image_url: imageUrl });
   } catch (error) {
     req.files?.forEach(file => {
       try { fs.unlinkSync(path.join(__dirname, file.path)); } catch(e) {}
     });
-    const errorMsg = error.response?.data?.error?.message || error.message;
-    res.json({ error: '生成失败', detail: errorMsg });
+    res.status(500).json({ error: '生成失败', detail: error.message });
   }
 });
 
-// 获取历史记录
+// ==================== 历史记录（严格用户隔离） ====================
+
 app.get('/api/history', requireAuth, (req, res) => {
   const { page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
@@ -669,19 +486,20 @@ app.get('/api/history', requireAuth, (req, res) => {
     });
 });
 
-// 删除历史记录
 app.delete('/api/history/:id', requireAuth, (req, res) => {
   db.run('DELETE FROM generations WHERE id = ? AND user_id = ?', 
     [req.params.id, req.session.userId],
     function(err) {
       if (err) return res.status(500).json({ error: '删除失败' });
+      if (this.changes === 0) return res.status(403).json({ error: '无权删除' });
       res.json({ success: true });
     });
 });
 
-// 管理员接口
+// ==================== 管理员接口 ====================
+
 app.get('/api/admin/users', requireAdmin, (req, res) => {
-  db.all(`SELECT u.id, u.email, u.role, u.email_verified, u.created_at, COUNT(g.id) as total_generations
+  db.all(`SELECT u.id, u.email, u.role, u.created_at, COUNT(g.id) as total_generations
           FROM users u LEFT JOIN generations g ON u.id = g.user_id
           GROUP BY u.id ORDER BY u.id DESC`, [], (err, rows) => {
     if (err) return res.status(500).json({ error: '查询失败' });
@@ -695,9 +513,9 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
       db.get(`SELECT COUNT(*) as today_gens FROM generations 
               WHERE date(created_at) = date('now')`, [], (err, t) => {
         res.json({
-          total_users: u ? u.total_users : 0,
-          total_generations: g ? g.total_gens : 0,
-          today_generations: t ? t.today_gens : 0
+          total_users: u?.total_users || 0,
+          total_generations: g?.total_gens || 0,
+          today_generations: t?.today_gens || 0
         });
       });
     });
@@ -705,12 +523,5 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🍌 香蕉 AI 服务器运行在端口 ${PORT}`);
-  console.log(`数据库路径: ${path.resolve(DB_PATH)}`);
-  console.log(`管理员账号: ${process.env.ADMIN_EMAIL || 'admin@banana.ai'} / ${process.env.ADMIN_PASSWORD || 'admin123'}`);
-  console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Railway环境: ${isRailway ? '是' : '否'}`);
-  if (!mailTransporter) {
-    console.log(`⚠️ 警告: 未配置SMTP，邮件验证码功能将使用控制台模拟模式`);
-  }
+  console.log(`🍌 服务器运行在端口 ${PORT}`);
 });
