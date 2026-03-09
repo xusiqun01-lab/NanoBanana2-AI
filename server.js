@@ -92,60 +92,101 @@ const BUILT_IN_PROVIDERS = [
   }
 ];
 
-// 数据库初始化
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    email_verified INTEGER DEFAULT 0,
-    verification_token TEXT,
-    role TEXT DEFAULT 'user',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
+// ========== 数据库强制初始化函数 ==========
+function initDatabase() {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      // 用户表
+      db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        email_verified INTEGER DEFAULT 0,
+        verification_token TEXT,
+        role TEXT DEFAULT 'user',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`, (err) => {
+        if (err) console.error('创建用户表失败:', err);
+        else console.log('✓ 用户表已就绪');
+      });
 
-  db.run(`CREATE TABLE IF NOT EXISTS api_configs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    provider_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    api_url TEXT NOT NULL,
-    api_key TEXT NOT NULL,
-    model TEXT DEFAULT 'dall-e-3',
-    is_default INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  )`);
+      // API配置表
+      db.run(`CREATE TABLE IF NOT EXISTS api_configs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        provider_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        api_url TEXT NOT NULL,
+        api_key TEXT NOT NULL,
+        model TEXT DEFAULT 'dall-e-3',
+        is_default INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )`, (err) => {
+        if (err) console.error('创建API配置表失败:', err);
+        else console.log('✓ API配置表已就绪');
+      });
 
-  db.run(`CREATE TABLE IF NOT EXISTS email_verifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL,
-    code TEXT NOT NULL,
-    type TEXT NOT NULL,
-    expires_at DATETIME NOT NULL,
-    used INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
+      // 邮箱验证表
+      db.run(`CREATE TABLE IF NOT EXISTS email_verifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        code TEXT NOT NULL,
+        type TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        used INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`, (err) => {
+        if (err) console.error('创建验证表失败:', err);
+        else console.log('✓ 验证表已就绪');
+      });
 
-  db.run(`CREATE TABLE IF NOT EXISTS generations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    prompt TEXT,
-    image_url TEXT,
-    size TEXT DEFAULT '1024x1024',
-    type TEXT DEFAULT 'text2img',
-    provider TEXT,
-    status TEXT,
-    error_msg TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  )`);
+      // 生成记录表
+      db.run(`CREATE TABLE IF NOT EXISTS generations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        prompt TEXT,
+        image_url TEXT,
+        size TEXT DEFAULT '1024x1024',
+        type TEXT DEFAULT 'text2img',
+        provider TEXT,
+        status TEXT,
+        error_msg TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )`, (err) => {
+        if (err) console.error('创建记录表失败:', err);
+        else console.log('✓ 生成记录表已就绪');
+      });
 
-  // 创建默认管理员
-  const adminEmail = 'admin@banana.ai';
-  const adminPass = bcrypt.hashSync('admin123', 8);
-  db.run(`INSERT OR IGNORE INTO users (email, password, email_verified, role) 
-          VALUES (?, ?, 1, 'admin')`, [adminEmail, adminPass]);
+      // 创建默认管理员（使用环境变量或默认值）
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@banana.ai';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+      const adminPass = bcrypt.hashSync(adminPassword, 8);
+      
+      db.run(`INSERT OR IGNORE INTO users (id, email, password, email_verified, role) 
+              VALUES (1, ?, ?, 1, 'admin')`, [adminEmail, adminPass], function(err) {
+        if (err) {
+          console.error('创建管理员失败:', err);
+        } else {
+          if (this.changes > 0) {
+            console.log('✓ 默认管理员已创建:', adminEmail);
+          } else {
+            console.log('✓ 管理员已存在');
+          }
+        }
+        // 初始化完成
+        resolve();
+      });
+    });
+  });
+}
+
+// 立即执行初始化
+initDatabase().then(() => {
+  console.log('数据库初始化完成');
+}).catch(err => {
+  console.error('数据库初始化失败:', err);
 });
 
 // 中间件
@@ -585,7 +626,7 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
 app.listen(PORT, () => {
   console.log(`🍌 香蕉 AI 服务器运行在端口 ${PORT}`);
   console.log(`数据库路径: ${DB_PATH}`);
-  console.log(`管理员账号: admin@banana.ai / admin123`);
+  console.log(`管理员账号: ${process.env.ADMIN_EMAIL || 'admin@banana.ai'} / ${process.env.ADMIN_PASSWORD || 'admin123'}`);
   console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
   if (!mailTransporter) {
     console.log(`⚠️ 警告: 未配置SMTP，邮件验证码功能将使用控制台模拟模式`);
