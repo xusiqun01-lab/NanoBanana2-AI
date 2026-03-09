@@ -48,14 +48,33 @@ app.use(session({
   }
 }));
 
-// 数据库路径（Railway 持久化卷）
-const DB_PATH = process.env.DB_PATH || '/data/data.sqlite';
+// ========== 数据库配置（Railway 优化版） ==========
+// 使用当前目录，避免 Railway /data 目录权限问题
+let DB_PATH = process.env.DB_PATH || './data.sqlite';
 const dataDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+
+// 确保数据库目录存在
+if (dataDir !== '.' && !fs.existsSync(dataDir)) {
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    console.log('✓ 数据库目录已创建:', dataDir);
+  } catch (err) {
+    console.error('✗ 创建数据库目录失败:', err.message);
+    // 回退到当前目录
+    DB_PATH = './data.sqlite';
+    console.log('⚠ 改用当前目录:', DB_PATH);
+  }
 }
 
-const db = new sqlite3.Database(DB_PATH);
+console.log('数据库路径:', path.resolve(DB_PATH));
+
+const db = new sqlite3.Database(DB_PATH, (err) => {
+  if (err) {
+    console.error('数据库连接失败:', err.message);
+  } else {
+    console.log('✓ 数据库连接成功');
+  }
+});
 
 // 邮件配置
 const SMTP_CONFIG = {
@@ -95,6 +114,8 @@ const BUILT_IN_PROVIDERS = [
 // ========== 数据库强制初始化函数 ==========
 function initDatabase() {
   return new Promise((resolve, reject) => {
+    console.log('开始初始化数据库...');
+    
     db.serialize(() => {
       // 用户表
       db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -106,7 +127,7 @@ function initDatabase() {
         role TEXT DEFAULT 'user',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`, (err) => {
-        if (err) console.error('创建用户表失败:', err);
+        if (err) console.error('✗ 创建用户表失败:', err.message);
         else console.log('✓ 用户表已就绪');
       });
 
@@ -123,7 +144,7 @@ function initDatabase() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id)
       )`, (err) => {
-        if (err) console.error('创建API配置表失败:', err);
+        if (err) console.error('✗ 创建API配置表失败:', err.message);
         else console.log('✓ API配置表已就绪');
       });
 
@@ -137,7 +158,7 @@ function initDatabase() {
         used INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`, (err) => {
-        if (err) console.error('创建验证表失败:', err);
+        if (err) console.error('✗ 创建验证表失败:', err.message);
         else console.log('✓ 验证表已就绪');
       });
 
@@ -155,7 +176,7 @@ function initDatabase() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id)
       )`, (err) => {
-        if (err) console.error('创建记录表失败:', err);
+        if (err) console.error('✗ 创建记录表失败:', err.message);
         else console.log('✓ 生成记录表已就绪');
       });
 
@@ -167,7 +188,7 @@ function initDatabase() {
       db.run(`INSERT OR IGNORE INTO users (id, email, password, email_verified, role) 
               VALUES (1, ?, ?, 1, 'admin')`, [adminEmail, adminPass], function(err) {
         if (err) {
-          console.error('创建管理员失败:', err);
+          console.error('✗ 创建管理员失败:', err.message);
         } else {
           if (this.changes > 0) {
             console.log('✓ 默认管理员已创建:', adminEmail);
@@ -176,6 +197,7 @@ function initDatabase() {
           }
         }
         // 初始化完成
+        console.log('数据库初始化完成');
         resolve();
       });
     });
@@ -184,9 +206,9 @@ function initDatabase() {
 
 // 立即执行初始化
 initDatabase().then(() => {
-  console.log('数据库初始化完成');
+  console.log('✓ 系统初始化成功，服务准备就绪');
 }).catch(err => {
-  console.error('数据库初始化失败:', err);
+  console.error('✗ 数据库初始化失败:', err);
 });
 
 // 中间件
@@ -204,7 +226,7 @@ const requireAdmin = (req, res, next) => {
 // 发送邮件函数
 async function sendEmail(to, subject, html) {
   if (!mailTransporter) {
-    console.log(`[邮件模拟] 发送到: ${to}\n主题: ${subject}\n内容: ${html}`);
+    console.log(`[邮件模拟] 发送到: ${to}\n主题: ${subject}`);
     return { success: true, preview: true };
   }
   
@@ -226,6 +248,7 @@ function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// 定期清理过期验证码
 setInterval(() => {
   db.run(`DELETE FROM email_verifications WHERE expires_at < datetime('now') OR used = 1`);
 }, 3600000);
@@ -237,9 +260,11 @@ app.get('/', (req, res) => {
 
 // 健康检查（Railway需要）
 app.get('/api/health', (req, res) => {
+  const dbExists = fs.existsSync(DB_PATH);
   res.json({ 
     status: 'ok', 
-    db: fs.existsSync(DB_PATH) ? 'connected' : 'disconnected',
+    db_connected: dbExists,
+    db_path: DB_PATH,
     time: new Date().toISOString() 
   });
 });
@@ -335,8 +360,23 @@ app.post('/api/auth/register', (req, res) => {
 // 登录
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
+  
+  console.log('登录尝试:', email);
+  
   db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-    if (err || !user || !bcrypt.compareSync(password, user.password)) {
+    if (err) {
+      console.error('登录查询错误:', err);
+      return res.json({ error: '系统错误' });
+    }
+    
+    if (!user) {
+      console.log('用户不存在:', email);
+      return res.json({ error: '邮箱或密码错误' });
+    }
+    
+    const isValidPassword = bcrypt.compareSync(password, user.password);
+    if (!isValidPassword) {
+      console.log('密码错误:', email);
       return res.json({ error: '邮箱或密码错误' });
     }
     
@@ -346,6 +386,8 @@ app.post('/api/auth/login', (req, res) => {
     
     req.session.userId = user.id;
     req.session.role = user.role;
+    
+    console.log('登录成功:', email, '角色:', user.role);
     res.json({ success: true, role: user.role });
   });
 });
@@ -625,11 +667,10 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🍌 香蕉 AI 服务器运行在端口 ${PORT}`);
-  console.log(`数据库路径: ${DB_PATH}`);
+  console.log(`数据库路径: ${path.resolve(DB_PATH)}`);
   console.log(`管理员账号: ${process.env.ADMIN_EMAIL || 'admin@banana.ai'} / ${process.env.ADMIN_PASSWORD || 'admin123'}`);
   console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
   if (!mailTransporter) {
     console.log(`⚠️ 警告: 未配置SMTP，邮件验证码功能将使用控制台模拟模式`);
-    console.log(`   如需真实邮件功能，请设置环境变量 SMTP_HOST, SMTP_USER, SMTP_PASS`);
   }
 });
