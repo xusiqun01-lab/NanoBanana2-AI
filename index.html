@@ -3,1605 +3,562 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>香蕉 AI - 专业图像生成平台</title>
+    <title>香蕉 AI - 调试版</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root {
-            --primary: #f59e0b;
-            --primary-light: #fbbf24;
-            --primary-dark: #d97706;
-            --primary-glow: rgba(245, 158, 11, 0.3);
-            --bg-dark: #0a0a0a;
-            --bg-card: #141414;
-            --bg-hover: #1a1a1a;
-            --border-glass: rgba(255, 255, 255, 0.1);
-            --text-primary: #fafafa;
-            --text-secondary: #a1a1aa;
-            --text-muted: #71717a;
-            --danger: #ef4444;
-            --success: #22c55e;
-            --radius: 12px;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow: hidden;
-        }
-
-        /* 登录页 */
-        .auth-container {
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.1), transparent 40%),
-                        radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.05), transparent 40%);
-            padding: 20px;
-        }
-
-        .auth-card {
-            width: 100%;
-            max-width: 420px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius);
-            padding: 40px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-        }
-
-        .auth-header {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
-        .logo {
-            width: 64px;
-            height: 64px;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            margin: 0 auto 16px;
-            box-shadow: 0 8px 24px var(--primary-glow);
-        }
-
-        .auth-header h1 {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-
-        .auth-header p {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 12px 16px;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid var(--border-glass);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 15px;
-            transition: all 0.3s;
-            outline: none;
-        }
-
-        .form-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
-        }
-
-        .btn-primary {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            color: #000;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px var(--primary-glow);
-        }
-
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .auth-switch {
-            text-align: center;
-            margin-top: 24px;
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-
-        .auth-switch a {
-            color: var(--primary-light);
-            cursor: pointer;
-            margin-left: 4px;
-            font-weight: 600;
-        }
-
-        .alert {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            display: none;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .alert.show { display: flex; }
-        .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; }
-        .alert-success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: #4ade80; }
-
-        /* 主应用 */
-        .app-container {
-            display: none;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        .app-layout {
-            display: flex;
-            height: 100%;
-        }
-
-        /* 侧边栏 */
-        .sidebar {
-            width: 260px;
-            background: var(--bg-card);
-            border-right: 1px solid var(--border-glass);
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-        }
-
-        .sidebar-header {
-            padding: 24px 20px;
-            border-bottom: 1px solid var(--border-glass);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .sidebar-logo {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .sidebar-brand h2 {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .sidebar-brand span {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .nav-section {
-            padding: 20px 12px;
-            flex: 1;
-            overflow-y: auto;
-        }
-
-        .nav-section-title {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            padding: 0 12px;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            margin: 4px 0;
-            border-radius: 8px;
-            cursor: pointer;
-            color: var(--text-secondary);
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-        }
-
-        .nav-item:hover {
-            background: rgba(255,255,255,0.05);
-            color: var(--text-primary);
-        }
-
-        .nav-item.active {
-            background: rgba(245, 158, 11, 0.15);
-            color: var(--primary-light);
-            border-color: rgba(245, 158, 11, 0.3);
-        }
-
-        .nav-item i {
-            width: 20px;
-            text-align: center;
-        }
-
-        /* 主内容 */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            background: var(--bg-dark);
-        }
-
-        .top-header {
-            height: 64px;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border-glass);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 32px;
-            flex-shrink: 0;
-        }
-
-        .page-title {
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        .user-section {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .user-info {
-            text-align: right;
-        }
-
-        .user-email {
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .user-role {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .btn-logout {
-            padding: 8px 16px;
-            background: transparent;
-            border: 1px solid var(--border-glass);
-            color: var(--text-secondary);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
-        }
-
-        .btn-logout:hover {
-            border-color: var(--danger);
-            color: var(--danger);
-        }
-
-        .content-area {
-            flex: 1;
-            overflow: auto;
-            padding: 24px;
-        }
-
-        /* 生成页面 - 图生图优化布局 */
-        .generate-layout {
-            display: grid;
-            grid-template-columns: 480px 1fr;
-            gap: 24px;
-            height: 100%;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        .panel {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius);
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        .panel-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--border-glass);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 600;
-            font-size: 16px;
-            flex-shrink: 0;
-        }
-
-        .panel-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-        }
-
-        /* 上传区域 - 图生图特化 */
-        .upload-zone {
-            border: 2px dashed var(--border-glass);
-            border-radius: 12px;
-            padding: 40px 24px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: rgba(0,0,0,0.2);
-            position: relative;
-            overflow: hidden;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .upload-zone:hover {
-            border-color: var(--primary);
-            background: rgba(245, 158, 11, 0.05);
-        }
-
-        .upload-zone.dragover {
-            border-color: var(--primary);
-            background: rgba(245, 158, 11, 0.1);
-            transform: scale(1.02);
-            border-style: solid;
-        }
-
-        .upload-zone.has-file {
-            border-color: var(--success);
-            background: rgba(34, 197, 94, 0.05);
-        }
-
-        .upload-icon {
-            font-size: 48px;
-            color: var(--text-muted);
-            margin-bottom: 16px;
-            transition: all 0.3s;
-        }
-
-        .upload-zone:hover .upload-icon {
-            color: var(--primary);
-            transform: translateY(-4px);
-        }
-
-        .upload-text {
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-            font-size: 15px;
-            font-weight: 500;
-        }
-
-        .upload-hint {
-            font-size: 13px;
-            color: var(--text-muted);
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        /* 图片预览 - 图生图 */
-        .preview-container {
-            margin-top: 16px;
-            position: relative;
-            display: inline-block;
-            width: 100%;
-        }
-
-        .preview-image {
-            width: 100%;
-            max-height: 300px;
-            object-fit: contain;
-            border-radius: 8px;
-            border: 1px solid var(--border-glass);
-            background: rgba(0,0,0,0.3);
-        }
-
-        .preview-remove {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            width: 28px;
-            height: 28px;
-            background: var(--danger);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
-        }
-
-        .preview-remove:hover {
-            transform: scale(1.1);
-        }
-
-        .multi-preview-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-top: 16px;
-        }
-
-        .multi-preview-item {
-            position: relative;
-            aspect-ratio: 1;
-        }
-
-        .multi-preview-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 8px;
-            border: 1px solid var(--border-glass);
-        }
-
-        .size-selector {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        .size-option {
-            padding: 16px 12px;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid var(--border-glass);
-            border-radius: 8px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-        }
-
-        .size-option:hover {
-            border-color: var(--primary);
-        }
-
-        .size-option.active {
-            background: rgba(245, 158, 11, 0.2);
-            border-color: var(--primary);
-            color: var(--primary-light);
-        }
-
-        .size-label {
-            display: block;
-            font-size: 12px;
-            opacity: 0.7;
-            margin-bottom: 4px;
-        }
-
-        .size-value {
-            font-weight: 600;
-            font-size: 15px;
-        }
-
-        .prompt-input {
-            width: 100%;
-            min-height: 100px;
-            padding: 16px;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid var(--border-glass);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 15px;
-            resize: vertical;
-            outline: none;
-            font-family: inherit;
-            margin-bottom: 20px;
-        }
-
-        .prompt-input:focus {
-            border-color: var(--primary);
-        }
-
-        .generate-btn {
-            width: 100%;
-            padding: 16px;
-            margin-top: 20px;
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            color: #000;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            transition: all 0.3s;
-            box-shadow: 0 4px 20px var(--primary-glow);
-        }
-
-        .generate-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px var(--primary-glow);
-        }
-
-        .generate-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        /* 结果区域 */
-        .result-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 400px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-            padding: 20px;
-        }
-
-        .result-placeholder {
-            text-align: center;
-            color: var(--text-muted);
-        }
-
-        .result-placeholder i {
-            font-size: 64px;
-            margin-bottom: 16px;
-            opacity: 0.3;
-        }
-
-        .result-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            border-radius: 8px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(245, 158, 11, 0.2);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .error-message {
-            color: var(--danger);
-            text-align: center;
-            padding: 20px;
-            max-width: 80%;
-        }
-
-        .error-message i {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-
-        /* 提示信息 */
-        .helper-text {
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-top: 8px;
-            line-height: 1.5;
-        }
-
-        .hidden { display: none !important; }
-
-        @media (max-width: 968px) {
-            .generate-layout {
-                grid-template-columns: 1fr;
-                height: auto;
-            }
-        }
+    :root {
+        --primary: #f59e0b;
+        --danger: #ef4444;
+        --success: #22c55e;
+        --bg-dark: #0a0a0a;
+        --bg-card: #141414;
+        --border-glass: rgba(255,255,255,0.1);
+        --text-primary: #fafafa;
+        --text-secondary: #a1a1aa;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-dark); color: var(--text-primary); min-height: 100vh; }
+
+    /* 调试面板（关键新增） */
+    .debug-panel {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 400px;
+        max-height: 300px;
+        background: rgba(20,20,20,0.95);
+        border: 1px solid var(--border-glass);
+        border-radius: 8px;
+        padding: 16px;
+        font-size: 12px;
+        font-family: 'Courier New', monospace;
+        overflow-y: auto;
+        z-index: 9999;
+        display: none;
+    }
+
+    .debug-panel.active { display: block; }
+
+    .debug-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-glass);
+    }
+
+    .debug-log {
+        margin-bottom: 8px;
+        padding: 8px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 4px;
+        border-left: 3px solid var(--primary);
+    }
+
+    .debug-log.error { border-left-color: var(--danger); }
+    .debug-log.success { border-left-color: var(--success); }
+
+    .debug-toggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-glass);
+        border-radius: 50%;
+        color: var(--text-secondary);
+        cursor: pointer;
+        z-index: 9998;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* 布局（与之前类似，精简版） */
+    .app-container { display: flex; height: 100vh; }
+    .sidebar { width: 260px; background: var(--bg-card); border-right: 1px solid var(--border-glass); padding: 24px 20px; }
+    .nav-item { padding: 12px; margin: 4px 0; border-radius: 8px; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; gap: 12px; }
+    .nav-item.active { background: rgba(245,158,11,0.15); color: var(--primary); }
+    .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .top-header { height: 64px; background: var(--bg-card); border-bottom: 1px solid var(--border-glass); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; }
+    .content-area { flex: 1; overflow: auto; padding: 24px; }
+
+    /* 生成布局 */
+    .generate-layout { display: grid; grid-template-columns: 480px 1fr; gap: 24px; height: 100%; max-width: 1400px; margin: 0 auto; }
+    .panel { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+    .panel-header { padding: 20px 24px; border-bottom: 1px solid var(--border-glass); font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .panel-body { flex: 1; overflow-y: auto; padding: 24px; }
+
+    /* 输入样式 */
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; margin-bottom: 8px; font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+    .form-input, .prompt-input { width: 100%; padding: 12px 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 8px; color: var(--text-primary); font-size: 15px; outline: none; }
+    .prompt-input { min-height: 120px; resize: vertical; font-family: inherit; }
+    .prompt-input:focus { border-color: var(--primary); }
+
+    /* 按钮 */
+    .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary), #d97706); color: #000; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { padding: 8px 16px; background: rgba(255,255,255,0.1); border: 1px solid var(--border-glass); color: var(--text-primary); border-radius: 6px; cursor: pointer; font-size: 13px; margin-top: 8px; }
+
+    /* 上传区 */
+    .upload-zone { border: 2px dashed var(--border-glass); border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(0,0,0,0.2); min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .upload-zone:hover { border-color: var(--primary); background: rgba(245,158,11,0.05); }
+    .upload-zone.dragover { border-color: var(--primary); background: rgba(245,158,11,0.1); transform: scale(1.02); }
+    .file-input { display: none; }
+
+    /* 结果区 */
+    .result-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; background: rgba(0,0,0,0.2); border-radius: 8px; position: relative; padding: 20px; }
+    .result-image { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+    .error-box { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 20px; border-radius: 8px; color: #f87171; max-width: 100%; overflow-wrap: break-word; }
+    .error-box pre { margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; font-size: 11px; overflow-x: auto; white-space: pre-wrap; }
+
+    /* 测试按钮 */
+    .test-btn { padding: 6px 12px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 6px; cursor: pointer; font-size: 12px; margin-left: 10px; }
+    .test-btn:hover { background: rgba(59,130,246,0.3); }
+
+    .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <!-- 登录页 -->
-    <div id="authPage" class="auth-container">
-        <div class="auth-card">
-            <div class="auth-header">
-                <div class="logo">🍌</div>
-                <h1>香蕉 AI</h1>
-                <p>专业图像生成平台</p>
-            </div>
-
-            <div id="loginForm">
-                <div id="loginAlert" class="alert"></div>
-                <div class="form-group">
-                    <label class="form-label">邮箱地址</label>
-                    <input type="email" id="loginEmail" class="form-input" placeholder="name@example.com">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">密码</label>
-                    <input type="password" id="loginPassword" class="form-input" placeholder="••••••••">
-                </div>
-                <button class="btn-primary" onclick="handleLogin()">
-                    <i class="fas fa-sign-in-alt"></i> 登录
-                </button>
-                <div class="auth-switch">
-                    还没有账户？<a onclick="toggleAuth('register')">立即注册</a>
-                </div>
-            </div>
-
-            <div id="registerForm" class="hidden">
-                <div id="registerAlert" class="alert"></div>
-                <div class="form-group">
-                    <label class="form-label">邮箱地址</label>
-                    <input type="email" id="regEmail" class="form-input" placeholder="name@example.com">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">设置密码</label>
-                    <input type="password" id="regPassword" class="form-input" placeholder="至少6位字符">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">确认密码</label>
-                    <input type="password" id="regPassword2" class="form-input" placeholder="再次输入密码">
-                </div>
-                <button class="btn-primary" onclick="handleRegister()">
-                    <i class="fas fa-user-plus"></i> 创建账户
-                </button>
-                <div class="auth-switch">
-                    已有账户？<a onclick="toggleAuth('login')">立即登录</a>
-                </div>
-            </div>
+    <!-- 调试面板 -->
+    <div class="debug-toggle" onclick="toggleDebug()" title="调试日志">
+        <i class="fas fa-bug"></i>
+    </div>
+    <div class="debug-panel" id="debugPanel">
+        <div class="debug-header">
+            <strong>调试日志</strong>
+            <button onclick="clearDebug()" style="background:none;border:none;color:#666;cursor:pointer;"><i class="fas fa-trash"></i></button>
         </div>
+        <div id="debugLogs"></div>
     </div>
 
-    <!-- 主应用 -->
     <div id="appContainer" class="app-container">
-        <div class="app-layout">
-            <!-- 侧边栏 -->
-            <aside class="sidebar">
-                <div class="sidebar-header">
-                    <div class="sidebar-logo">🍌</div>
-                    <div class="sidebar-brand">
-                        <h2>香蕉 AI</h2>
-                        <span>专业创作</span>
-                    </div>
+        <aside class="sidebar">
+            <div style="margin-bottom: 32px; font-size: 20px; font-weight: 700;">
+                🍌 香蕉 AI
+            </div>
+            <nav>
+                <div class="nav-item active" onclick="navigate('text2img')">
+                    <i class="fas fa-pen-nib"></i> 文生图
                 </div>
-                
-                <nav class="nav-section">
-                    <div class="nav-section-title">创作</div>
-                    <div class="nav-item active" onclick="navigate('home')" data-page="home">
-                        <i class="fas fa-home"></i>
-                        <span>首页</span>
-                    </div>
-                    <div class="nav-item" onclick="navigate('text2img')" data-page="text2img">
-                        <i class="fas fa-pen-nib"></i>
-                        <span>文生图</span>
-                    </div>
-                    <div class="nav-item" onclick="navigate('img2img')" data-page="img2img">
-                        <i class="fas fa-image"></i>
-                        <span>图生图</span>
-                    </div>
-                    <div class="nav-item" onclick="navigate('multi')" data-page="multi">
-                        <i class="fas fa-layer-group"></i>
-                        <span>多图融合</span>
-                    </div>
+                <div class="nav-item" onclick="navigate('img2img')">
+                    <i class="fas fa-image"></i> 图生图
+                </div>
+                <div class="nav-item" onclick="navigate('settings')">
+                    <i class="fas fa-cog"></i> API设置
+                </div>
+            </nav>
+        </aside>
 
-                    <div class="nav-section-title" style="margin-top: 24px;">管理</div>
-                    <div class="nav-item" onclick="navigate('gallery')" data-page="gallery">
-                        <i class="fas fa-history"></i>
-                        <span>创作历史</span>
-                    </div>
-                    <div class="nav-item" onclick="navigate('settings')" data-page="settings">
-                        <i class="fas fa-sliders-h"></i>
-                        <span>API 设置</span>
-                    </div>
-                    <div class="nav-item admin-only hidden" onclick="navigate('admin')" data-page="admin">
-                        <i class="fas fa-shield-alt"></i>
-                        <span>管理后台</span>
-                    </div>
-                </nav>
-            </aside>
+        <main class="main-content">
+            <header class="top-header">
+                <h1 id="pageTitle">文生图</h1>
+                <div>
+                    <span id="userName" style="margin-right: 16px;">user</span>
+                    <button onclick="logout()" style="background:none;border:none;color:#fff;cursor:pointer;"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
 
-            <!-- 主内容 -->
-            <main class="main-content">
-                <header class="top-header">
-                    <h1 class="page-title" id="pageTitle">首页</h1>
-                    <div class="user-section">
-                        <div class="user-info">
-                            <div class="user-email" id="userName">加载中...</div>
-                            <div class="user-role" id="userRole">用户</div>
-                        </div>
-                        <button class="btn-logout" onclick="handleLogout()">
-                            <i class="fas fa-sign-out-alt"></i> 退出
-                        </button>
-                    </div>
-                </header>
-
-                <div class="content-area" id="contentArea">
-                    <!-- 首页 -->
-                    <div id="page-home" class="page">
-                        <div style="text-align: center; padding: 80px 20px;">
-                            <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 100px; font-size: 14px; color: var(--primary-light); margin-bottom: 24px;">
-                                <i class="fas fa-sparkles"></i> AI 图像生成
-                            </div>
-                            <h2 style="font-size: 48px; font-weight: 800; margin-bottom: 16px; background: linear-gradient(135deg, #fff 0%, var(--primary-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                                图生图专家
-                            </h2>
-                            <p style="font-size: 18px; color: var(--text-secondary); max-width: 600px; margin: 0 auto 32px;">
-                                上传图片，AI智能重绘、风格转换、细节增强
-                            </p>
-                            <div style="display: flex; gap: 16px; justify-content: center;">
-                                <button class="btn-primary" style="width: auto; padding: 16px 32px;" onclick="navigate('img2img')">
-                                    <i class="fas fa-image"></i> 开始图生图
-                                </button>
-                                <button class="btn-primary" style="width: auto; padding: 16px 32px; background: transparent; border: 1px solid var(--border-glass); color: var(--text-primary);" onclick="navigate('settings')">
-                                    <i class="fas fa-cog"></i> 配置API
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 文生图 -->
-                    <div id="page-text2img" class="page hidden">
-                        <div class="generate-layout">
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <i class="fas fa-sliders-h"></i> 参数设置
-                                </div>
-                                <div class="panel-body">
-                                    <label class="form-label">图像尺寸</label>
-                                    <div class="size-selector" id="t2iSizes">
-                                        <div class="size-option active" data-size="1024x1024" onclick="selectSize('t2i', this)">
-                                            <span class="size-label">正方形</span>
-                                            <span class="size-value">1024×1024</span>
-                                        </div>
-                                        <div class="size-option" data-size="1792x1024" onclick="selectSize('t2i', this)">
-                                            <span class="size-label">宽屏</span>
-                                            <span class="size-value">1792×1024</span>
-                                        </div>
-                                        <div class="size-option" data-size="1024x1792" onclick="selectSize('t2i', this)">
-                                            <span class="size-label">竖屏</span>
-                                            <span class="size-value">1024×1792</span>
-                                        </div>
-                                    </div>
-
-                                    <label class="form-label">创意描述</label>
-                                    <textarea id="t2iPrompt" class="prompt-input" placeholder="描述你想要的画面..."></textarea>
-
-                                    <button class="generate-btn" id="t2iBtn" onclick="generateText2Img()">
-                                        <i class="fas fa-wand-magic-sparkles"></i> 生成图像
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <i class="fas fa-eye"></i> 预览
-                                </div>
-                                <div class="panel-body">
-                                    <div id="t2iResult" class="result-area">
-                                        <div class="result-placeholder">
-                                            <i class="fas fa-image"></i>
-                                            <p>生成的图像将在这里预览</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 图生图 - 重点优化 -->
-                    <div id="page-img2img" class="page hidden">
-                        <div class="generate-layout">
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <i class="fas fa-sliders-h"></i> 上传与设置
-                                </div>
-                                <div class="panel-body">
-                                    <label class="form-label">上传原图 <span style="color: var(--danger);">*</span></label>
-                                    <div class="upload-zone" id="i2iUploadZone" onclick="document.getElementById('i2iFile').click()">
-                                        <div class="upload-content" id="i2iUploadContent">
-                                            <div class="upload-icon">
-                                                <i class="fas fa-cloud-upload-alt"></i>
-                                            </div>
-                                            <div class="upload-text">点击或拖拽上传图片</div>
-                                            <div class="upload-hint">支持 JPG、PNG，最大 10MB</div>
-                                        </div>
-                                        <input type="file" id="i2iFile" class="file-input" accept="image/*" onchange="handleI2IFile(event)">
-                                    </div>
-                                    <div id="i2iPreview" style="margin-top: 12px;"></div>
-                                    
-                                    <p class="helper-text">
-                                        <i class="fas fa-info-circle"></i> 
-                                        提示：某些API要求图片必须是正方形且小于4MB
-                                    </p>
-
-                                    <label class="form-label" style="margin-top: 24px;">输出尺寸</label>
-                                    <div class="size-selector" id="i2iSizes">
-                                        <div class="size-option active" data-size="1024x1024" onclick="selectSize('i2i', this)">
-                                            <span class="size-label">保持</span>
-                                            <span class="size-value">1024²</span>
-                                        </div>
-                                        <div class="size-option" data-size="512x512" onclick="selectSize('i2i', this)">
-                                            <span class="size-label">小图</span>
-                                            <span class="size-value">512²</span>
-                                        </div>
-                                    </div>
-
-                                    <label class="form-label">转换描述（可选）</label>
-                                    <textarea id="i2iPrompt" class="prompt-input" placeholder="描述如何修改图片，例如：转换成赛博朋克风格、添加油画质感、修复清晰度..."></textarea>
-
-                                    <button class="generate-btn" id="i2iBtn" onclick="generateImg2Img()" disabled>
-                                        <i class="fas fa-wand-magic-sparkles"></i> 开始转换
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <i class="fas fa-eye"></i> 转换结果
-                                </div>
-                                <div class="panel-body">
-                                    <div id="i2iResult" class="result-area">
-                                        <div class="result-placeholder">
-                                            <i class="fas fa-image"></i>
-                                            <p>转换后的图像将在这里显示</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 多图融合 -->
-                    <div id="page-multi" class="page hidden">
-                        <div class="generate-layout">
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <i class="fas fa-sliders-h"></i> 多图上传
-                                </div>
-                                <div class="panel-body">
-                                    <label class="form-label">上传参考图（1-4张）<span style="color: var(--danger);">*</span></label>
-                                    <div class="upload-zone" id="multiUploadZone" onclick="document.getElementById('multiFiles').click()">
-                                        <div class="upload-icon">
-                                            <i class="fas fa-images"></i>
-                                        </div>
-                                        <div class="upload-text">点击或拖拽上传多张图片</div>
-                                        <div class="upload-hint">支持 1-4 张图片</div>
-                                        <input type="file" id="multiFiles" class="file-input" accept="image/*" multiple onchange="handleMultiFiles(event)">
-                                    </div>
-                                    <div id="multiPreview" class="multi-preview-grid" style="display: none;"></div>
-
-                                    <label class="form-label" style="margin-top: 24px;">融合描述</label>
-                                    <textarea id="multiPrompt" class="prompt-input" placeholder="描述融合效果，例如：结合图1的色调和图2的构图..."></textarea>
-
-                                    <button class="generate-btn" id="multiBtn" onclick="generateMulti()" disabled>
-                                        <i class="fas fa-layer-group"></i> 融合生成
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <i class="fas fa-eye"></i> 融合结果
-                                </div>
-                                <div class="panel-body">
-                                    <div id="multiResult" class="result-area">
-                                        <div class="result-placeholder">
-                                            <i class="fas fa-image"></i>
-                                            <p>融合结果将在这里预览</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- API设置 -->
-                    <div id="page-settings" class="page hidden">
-                        <div style="max-width: 800px;">
-                            <div class="panel" style="margin-bottom: 24px;">
-                                <div class="panel-header">
-                                    <i class="fas fa-plus-circle"></i> 添加API配置
-                                </div>
-                                <div class="panel-body">
-                                    <div class="form-group">
-                                        <label class="form-label">配置名称</label>
-                                        <input type="text" id="apiName" class="form-input" placeholder="例如：贞贞的AI工坊">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">API URL</label>
-                                        <input type="text" id="apiUrl" class="form-input" placeholder="https://ai.t8star.cn/v1/images/generations">
-                                        <p class="helper-text">图生图会自动尝试 /images/edits 端点</p>
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">API Key</label>
-                                        <input type="password" id="apiKey" class="form-input" placeholder="sk-...">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">模型</label>
-                                        <input type="text" id="apiModel" class="form-input" placeholder="nano-banana-2">
-                                    </div>
-                                    <button class="btn-primary" onclick="saveApiConfig()">
-                                        保存配置
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <i class="fas fa-list"></i> 我的配置
-                                </div>
-                                <div class="panel-body" id="apiList">
-                                    <p style="color: var(--text-muted); text-align: center; padding: 40px;">暂无配置</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 历史记录 -->
-                    <div id="page-gallery" class="page hidden">
-                        <div id="galleryGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px;">
-                            <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);">
-                                <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 16px;"></i>
-                                <p>加载中...</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 管理后台 -->
-                    <div id="page-admin" class="page hidden">
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 32px;">
-                            <div class="panel" style="text-align: center; padding: 24px;">
-                                <div style="font-size: 36px; font-weight: 800; color: var(--primary-light); margin-bottom: 8px;" id="statUsers">-</div>
-                                <div style="color: var(--text-secondary); font-size: 14px;">总用户数</div>
-                            </div>
-                            <div class="panel" style="text-align: center; padding: 24px;">
-                                <div style="font-size: 36px; font-weight: 800; color: var(--primary-light); margin-bottom: 8px;" id="statGens">-</div>
-                                <div style="color: var(--text-secondary); font-size: 14px;">总生成数</div>
-                            </div>
-                            <div class="panel" style="text-align: center; padding: 24px;">
-                                <div style="font-size: 36px; font-weight: 800; color: var(--primary-light); margin-bottom: 8px;" id="statToday">-</div>
-                                <div style="color: var(--text-secondary); font-size: 14px;">今日生成</div>
-                            </div>
-                        </div>
-                        
+            <div class="content-area">
+                <!-- 文生图页面 -->
+                <div id="page-text2img" class="page">
+                    <div class="generate-layout">
                         <div class="panel">
                             <div class="panel-header">
-                                <i class="fas fa-users"></i> 用户列表
+                                <i class="fas fa-sliders-h"></i> 参数设置
                             </div>
                             <div class="panel-body">
-                                <table style="width: 100%; border-collapse: collapse;">
-                                    <thead>
-                                        <tr style="border-bottom: 1px solid var(--border-glass); text-align: left;">
-                                            <th style="padding: 12px; color: var(--text-secondary);">邮箱</th>
-                                            <th style="padding: 12px; color: var(--text-secondary);">角色</th>
-                                            <th style="padding: 12px; color: var(--text-secondary);">生成次数</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="adminUsersList"></tbody>
-                                </table>
+                                <div class="form-group">
+                                    <label class="form-label">提示词</label>
+                                    <textarea id="t2iPrompt" class="prompt-input" placeholder="描述你想要的画面..."></textarea>
+                                </div>
+                                <button class="btn-primary" id="t2iBtn" onclick="generateText2Img()">
+                                    <i class="fas fa-magic"></i> 生成图像
+                                </button>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-eye"></i> 结果
+                            </div>
+                            <div class="panel-body">
+                                <div id="t2iResult" class="result-area">
+                                    <p style="color: var(--text-secondary);">生成结果将显示在这里</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+
+                <!-- 图生图页面 -->
+                <div id="page-img2img" class="page hidden">
+                    <div class="generate-layout">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-sliders-h"></i> 上传与设置
+                            </div>
+                            <div class="panel-body">
+                                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('imgFile').click()">
+                                    <i class="fas fa-cloud-upload-alt" style="font-size: 48px; margin-bottom: 16px; color: var(--text-muted);"></i>
+                                    <div style="color: var(--text-secondary); margin-bottom: 8px;">点击或拖拽上传图片</div>
+                                    <div style="font-size: 13px; color: var(--text-muted);">支持 JPG、PNG，自动转Base64</div>
+                                    <input type="file" id="imgFile" class="file-input" accept="image/*" onchange="handleImageUpload(event)">
+                                </div>
+                                <div id="imgPreview" style="margin-top: 16px;"></div>
+                                
+                                <div class="form-group" style="margin-top: 20px;">
+                                    <label class="form-label">转换描述</label>
+                                    <textarea id="imgPrompt" class="prompt-input" placeholder="描述如何修改..."></textarea>
+                                </div>
+                                <button class="btn-primary" id="imgBtn" onclick="generateImg2Img()" disabled>
+                                    <i class="fas fa-magic"></i> 开始转换
+                                </button>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-eye"></i> 转换结果
+                            </div>
+                            <div class="panel-body">
+                                <div id="imgResult" class="result-area">
+                                    <p style="color: var(--text-secondary);">转换结果将显示在这里</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API设置页面（带测试功能） -->
+                <div id="page-settings" class="page hidden">
+                    <div class="panel" style="max-width: 600px;">
+                        <div class="panel-header">
+                            <i class="fas fa-cog"></i> API配置
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label class="form-label">配置名称</label>
+                                <input type="text" id="apiName" class="form-input" placeholder="我的API">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">API URL 
+                                    <button class="test-btn" onclick="testConnection()">测试连接</button>
+                                </label>
+                                <input type="text" id="apiUrl" class="form-input" placeholder="https://api.example.com/v1/images/generations">
+                                <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+                                    提示：通常是 <code>https://xxx.com/v1/images/generations</code>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">API Key</label>
+                                <input type="password" id="apiKey" class="form-input" placeholder="sk-...">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">模型</label>
+                                <input type="text" id="apiModel" class="form-input" placeholder="dall-e-3" value="dall-e-3">
+                            </div>
+                            <button class="btn-primary" onclick="saveApi()">保存配置</button>
+                            
+                            <div id="testResult" style="margin-top: 20px; display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script>
-        // 状态管理
-        let currentUser = null;
-        let selectedSizes = { t2i: '1024x1024', i2i: '1024x1024', multi: '1024x1024' };
-        let i2iFile = null;
-        let multiFiles = [];
-
-        // 初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            checkAuth();
-        });
-
-        async function checkAuth() {
-            try {
-                const res = await fetch('/api/user', { credentials: 'include' });
-                if (res.ok) {
-                    currentUser = await res.json();
-                    showApp();
-                    updateUI();
-                    // 如果主要用图生图，可以默认跳转到图生图页面
-                    // navigate('img2img');
-                } else {
-                    showAuth();
-                }
-            } catch (e) {
-                showAuth();
-            }
+    // 调试日志系统
+    function log(type, message, data) {
+        const logs = document.getElementById('debugLogs');
+        const entry = document.createElement('div');
+        entry.className = `debug-log ${type}`;
+        const time = new Date().toLocaleTimeString();
+        entry.innerHTML = `<strong>[${time}]</strong> ${message}`;
+        if (data) {
+            entry.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
         }
+        logs.appendChild(entry);
+        logs.scrollTop = logs.scrollHeight;
+        console.log(`[${type}]`, message, data);
+    }
 
-        function showAuth() {
-            document.getElementById('authPage').style.display = 'flex';
-            document.getElementById('appContainer').style.display = 'none';
-        }
+    function toggleDebug() {
+        document.getElementById('debugPanel').classList.toggle('active');
+    }
 
-        function showApp() {
-            document.getElementById('authPage').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'block';
-        }
+    function clearDebug() {
+        document.getElementById('debugLogs').innerHTML = '';
+    }
 
-        function updateUI() {
-            if (!currentUser) return;
-            document.getElementById('userName').textContent = currentUser.email;
-            document.getElementById('userRole').textContent = currentUser.role === 'admin' ? '管理员' : '用户';
-            
-            if (currentUser.role === 'admin') {
-                document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-            }
-        }
+    // 状态
+    let currentImage = null;
+    let apiConfig = null;
 
-        function toggleAuth(mode) {
-            document.getElementById('loginForm').classList.toggle('hidden', mode !== 'login');
-            document.getElementById('registerForm').classList.toggle('hidden', mode !== 'register');
-        }
-
-        function showAlert(id, type, message) {
-            const el = document.getElementById(id);
-            el.className = `alert alert-${type} show`;
-            el.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
-            setTimeout(() => el.classList.remove('show'), 3000);
-        }
-
-        async function handleLogin() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            if (!email || !password) return showAlert('loginAlert', 'error', '请输入邮箱和密码');
-
-            try {
-                const res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ email, password })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    currentUser = { email: data.email, role: data.role, id: data.userId };
-                    showApp();
-                    updateUI();
-                    navigate('home');
-                } else {
-                    showAlert('loginAlert', 'error', data.error || '登录失败');
-                }
-            } catch (e) {
-                showAlert('loginAlert', 'error', '网络错误');
-            }
-        }
-
-        async function handleRegister() {
-            const email = document.getElementById('regEmail').value;
-            const password = document.getElementById('regPassword').value;
-            const password2 = document.getElementById('regPassword2').value;
-
-            if (!email || !password) return showAlert('registerAlert', 'error', '请填写完整信息');
-            if (password.length < 6) return showAlert('registerAlert', 'error', '密码至少6位');
-            if (password !== password2) return showAlert('registerAlert', 'error', '两次密码不一致');
-
-            try {
-                const res = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ email, password })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showAlert('registerAlert', 'success', '注册成功！请登录');
-                    setTimeout(() => toggleAuth('login'), 1000);
-                } else {
-                    showAlert('registerAlert', 'error', data.error || '注册失败');
-                }
-            } catch (e) {
-                showAlert('registerAlert', 'error', '网络错误');
-            }
-        }
-
-        async function handleLogout() {
-            await fetch('/api/logout', { credentials: 'include' });
-            currentUser = null;
-            showAuth();
-        }
-
-        function navigate(page) {
-            document.querySelectorAll('.nav-item').forEach(el => {
-                el.classList.toggle('active', el.dataset.page === page);
-            });
-            document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
-            const targetPage = document.getElementById(`page-${page}`);
-            if (targetPage) targetPage.classList.remove('hidden');
-            
-            const titles = {
-                home: '首页', text2img: '文生图', img2img: '图生图', multi: '多图融合',
-                gallery: '创作历史', settings: 'API 设置', admin: '管理后台'
-            };
-            document.getElementById('pageTitle').textContent = titles[page] || page;
-
-            if (page === 'gallery') loadHistory();
-            if (page === 'settings') loadApiList();
-            if (page === 'admin' && currentUser?.role === 'admin') loadAdminStats();
-            
-            // 初始化拖拽
-            if (page === 'img2img') setupDragAndDrop('i2i');
-            if (page === 'multi') setupDragAndDrop('multi');
-        }
-
-        function selectSize(type, el) {
-            const container = el.parentElement;
-            container.querySelectorAll('.size-option').forEach(opt => opt.classList.remove('active'));
-            el.classList.add('active');
-            selectedSizes[type] = el.dataset.size;
-        }
-
-        // 拖拽上传设置
-        function setupDragAndDrop(type) {
-            const zoneId = type === 'i2i' ? 'i2iUploadZone' : 'multiUploadZone';
-            const zone = document.getElementById(zoneId);
-            if (!zone) return;
-
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                zone.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }, false);
-            });
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                zone.addEventListener(eventName, () => zone.classList.add('dragover'), false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                zone.addEventListener(eventName, () => zone.classList.remove('dragover'), false);
-            });
-
-            zone.addEventListener('drop', (e) => {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                
-                if (type === 'i2i' && files.length > 0) {
-                    handleFile(files[0], 'i2i');
-                } else if (type === 'multi') {
-                    handleFiles(Array.from(files).slice(0, 4), 'multi');
-                }
-            }, false);
-        }
-
-        // 文生图
-        async function generateText2Img() {
-            const prompt = document.getElementById('t2iPrompt').value.trim();
-            if (!prompt) return alert('请输入描述');
-
-            const btn = document.getElementById('t2iBtn');
-            const result = document.getElementById('t2iResult');
-            
-            btn.disabled = true;
-            btn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px; margin-right: 8px;"></div> 生成中...';
-            result.innerHTML = '<div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">AI创作中...</p>';
-
-            try {
-                const res = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ prompt, size: selectedSizes.t2i })
-                });
-                const data = await res.json();
-                
-                if (data.success && data.image_url) {
-                    result.innerHTML = `<img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')" style="cursor: zoom-in;">`;
-                } else {
-                    throw new Error(data.error || '生成失败');
-                }
-            } catch (e) {
-                result.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i><p>${e.message}</p></div>`;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> 生成图像';
-            }
-        }
-
-        // 图生图处理
-        function handleI2IFile(e) {
-            const file = e.target.files[0];
-            if (file) handleFile(file, 'i2i');
-        }
-
-        function handleFile(file, type) {
-            if (!file.type.startsWith('image/')) {
-                alert('请上传图片文件');
-                return;
-            }
-            if (file.size > 10 * 1024 * 1024) {
-                alert('文件过大，最大支持10MB');
-                return;
-            }
-            
-            i2iFile = file;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const preview = document.getElementById('i2iPreview');
-                preview.innerHTML = `
-                    <div class="preview-container">
-                        <img src="${e.target.result}" class="preview-image">
-                        <button class="preview-remove" onclick="removeI2IFile()" title="删除图片">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                `;
-                document.getElementById('i2iUploadZone').classList.add('has-file');
-                document.getElementById('i2iBtn').disabled = false;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function removeI2IFile() {
-            i2iFile = null;
-            document.getElementById('i2iPreview').innerHTML = '';
-            document.getElementById('i2iUploadZone').classList.remove('has-file');
-            document.getElementById('i2iFile').value = '';
-            document.getElementById('i2iBtn').disabled = true;
-        }
-
-        // 图生图生成 - 核心功能
-        async function generateImg2Img() {
-            if (!i2iFile) return alert('请先上传图片');
-
-            const prompt = document.getElementById('i2iPrompt').value;
-            const btn = document.getElementById('i2iBtn');
-            const result = document.getElementById('i2iResult');
-            
-            const formData = new FormData();
-            formData.append('image', i2iFile);
-            formData.append('prompt', prompt);
-            formData.append('size', selectedSizes.i2i);
-
-            btn.disabled = true;
-            result.innerHTML = '<div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">AI处理中，可能需要30-60秒...</p>';
-
-            try {
-                const res = await fetch('/api/img2img', {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: formData
-                });
-                const data = await res.json();
-                
-                if (data.success && data.image_url) {
-                    result.innerHTML = `
-                        <img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')" style="cursor: zoom-in;">
-                        <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 16px; border-radius: 20px; font-size: 13px;">
-                            <i class="fas fa-check-circle" style="color: var(--success); margin-right: 6px;"></i>
-                            双击查看原图 | 右键保存
-                        </div>
-                    `;
-                } else {
-                    throw new Error(data.error || data.detail || '处理失败');
-                }
-            } catch (e) {
-                result.innerHTML = `
-                    <div class="error-message">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>${e.message}</p>
-                        <p style="font-size: 13px; margin-top: 8px; opacity: 0.8;">提示：请确保API支持图生图功能（/images/edits）</p>
-                    </div>
-                `;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> 开始转换';
-            }
-        }
-
-        // 多图处理
-        function handleMultiFiles(e) {
-            const files = Array.from(e.target.files).slice(0, 4);
-            handleFiles(files, 'multi');
-        }
-
-        function handleFiles(files, type) {
-            multiFiles = files.filter(f => {
-                if (!f.type.startsWith('image/')) {
-                    alert(`${f.name} 不是图片文件`);
-                    return false;
-                }
-                if (f.size > 10 * 1024 * 1024) {
-                    alert(`${f.name} 超过10MB`);
-                    return false;
-                }
-                return true;
-            });
-
-            if (multiFiles.length === 0) return;
-
-            const preview = document.getElementById('multiPreview');
-            preview.innerHTML = '';
-            preview.style.display = 'grid';
-            
-            multiFiles.forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    preview.innerHTML += `
-                        <div class="multi-preview-item">
-                            <img src="${e.target.result}">
-                            <button class="preview-remove" onclick="removeMultiFile(${index})" style="top: -8px; right: -8px;">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                    `;
-                };
-                reader.readAsDataURL(file);
-            });
-            
-            document.getElementById('multiBtn').disabled = false;
-        }
-
-        function removeMultiFile(index) {
-            multiFiles.splice(index, 1);
-            if (multiFiles.length === 0) {
-                document.getElementById('multiPreview').innerHTML = '';
-                document.getElementById('multiPreview').style.display = 'none';
-                document.getElementById('multiFiles').value = '';
-                document.getElementById('multiBtn').disabled = true;
+    // 检查登录
+    async function init() {
+        try {
+            const res = await fetch('/api/user', { credentials: 'include' });
+            if (res.ok) {
+                const user = await res.json();
+                document.getElementById('userName').textContent = user.email;
+                loadApiConfig();
             } else {
-                // 重新渲染
-                const preview = document.getElementById('multiPreview');
-                preview.innerHTML = '';
-                multiFiles.forEach((file, idx) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        preview.innerHTML += `
-                            <div class="multi-preview-item">
-                                <img src="${e.target.result}">
-                                <button class="preview-remove" onclick="removeMultiFile(${idx})" style="top: -8px; right: -8px;">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                        `;
-                    };
-                    reader.readAsDataURL(file);
-                });
+                window.location.href = '/login.html'; // 简化处理，实际应有登录页
             }
+        } catch (e) {
+            log('error', '初始化失败', e.message);
         }
+    }
 
-        async function generateMulti() {
-            if (multiFiles.length === 0) return alert('请至少上传一张图片');
-
-            const prompt = document.getElementById('multiPrompt').value;
-            const btn = document.getElementById('multiBtn');
-            const result = document.getElementById('multiResult');
-
-            const formData = new FormData();
-            multiFiles.forEach(f => formData.append('images', f));
-            formData.append('prompt', prompt);
-            formData.append('size', selectedSizes.multi);
-
-            btn.disabled = true;
-            result.innerHTML = '<div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">融合中...</p>';
-
-            try {
-                const res = await fetch('/api/multi-ref', {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: formData
-                });
-                const data = await res.json();
-                
-                if (data.success && data.image_url) {
-                    result.innerHTML = `<img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')">`;
-                } else {
-                    throw new Error(data.error || '融合失败');
-                }
-            } catch (e) {
-                result.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i><p>${e.message}</p></div>`;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-layer-group"></i> 融合生成';
+    async function loadApiConfig() {
+        try {
+            const res = await fetch('/api/user/apis', { credentials: 'include' });
+            const apis = await res.json();
+            if (apis.length > 0) {
+                apiConfig = apis[0];
+                document.getElementById('apiName').value = apiConfig.name;
+                document.getElementById('apiUrl').value = apiConfig.api_url;
+                document.getElementById('apiKey').value = apiConfig.api_key;
+                document.getElementById('apiModel').value = apiConfig.model;
+                log('success', '已加载API配置', apiConfig.name);
             }
+        } catch (e) {
+            log('error', '加载配置失败');
         }
+    }
 
-        // API管理
-        async function loadApiList() {
-            try {
-                const res = await fetch('/api/user/apis', { credentials: 'include' });
-                const apis = await res.json();
-                
-                const list = document.getElementById('apiList');
-                if (apis.length === 0) {
-                    list.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 40px;">暂无配置，请添加API</p>';
-                    return;
-                }
+    function navigate(page) {
+        document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+        document.getElementById(`page-${page}`).classList.remove('hidden');
+        document.getElementById('pageTitle').textContent = 
+            page === 'text2img' ? '文生图' : 
+            page === 'img2img' ? '图生图' : 'API设置';
+    }
 
-                list.innerHTML = apis.map(api => `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: 8px; margin-bottom: 12px; ${api.is_default ? 'border-color: var(--primary); background: rgba(245, 158, 11, 0.1);' : ''}">
-                        <div>
-                            <div style="font-weight: 600; margin-bottom: 4px;">
-                                ${api.name}
-                                ${api.is_default ? '<span style="background: rgba(245,158,11,0.2); color: var(--primary-light); padding: 2px 8px; border-radius: 100px; font-size: 11px; margin-left: 8px;">默认</span>' : ''}
-                            </div>
-                            <div style="font-size: 13px; color: var(--text-muted);">${api.model}</div>
-                        </div>
-                        <button onclick="deleteApi(${api.id})" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer;">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                `).join('');
-            } catch (e) {
-                console.error('加载API列表失败');
-            }
-        }
-
-        async function saveApiConfig() {
-            const name = document.getElementById('apiName').value;
-            const api_url = document.getElementById('apiUrl').value;
-            const api_key = document.getElementById('apiKey').value;
-            const model = document.getElementById('apiModel').value;
-
-            if (!name || !api_url || !api_key) return alert('请填写完整信息');
-
-            try {
-                const res = await fetch('/api/user/apis', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ name, api_url, api_key, model: model || 'dall-e-3', is_default: true })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    alert('保存成功');
-                    loadApiList();
-                    document.getElementById('apiName').value = '';
-                    document.getElementById('apiUrl').value = '';
-                    document.getElementById('apiKey').value = '';
-                    document.getElementById('apiModel').value = '';
-                } else {
-                    alert(data.error || '保存失败');
-                }
-            } catch (e) {
-                alert('网络错误');
-            }
-        }
-
-        async function deleteApi(id) {
-            if (!confirm('确定删除？')) return;
-            try {
-                const res = await fetch(`/api/user/apis/${id}`, { method: 'DELETE', credentials: 'include' });
-                if (res.ok) loadApiList();
-                else alert('删除失败');
-            } catch (e) {
-                alert('网络错误');
-            }
-        }
-
-        // 历史记录
-        async function loadHistory() {
-            const grid = document.getElementById('galleryGrid');
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i></div>';
+    // 文生图（关键修复：详细错误处理）
+    async function generateText2Img() {
+        const prompt = document.getElementById('t2iPrompt').value.trim();
+        const btn = document.getElementById('t2iBtn');
+        const result = document.getElementById('t2iResult');
+        
+        if (!prompt) return alert('请输入提示词');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+        result.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 32px; color: var(--primary);"></i>';
+        
+        log('info', '开始文生图请求', { prompt });
+        
+        try {
+            const res = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ prompt, size: '1024x1024' })
+            });
             
-            try {
-                const res = await fetch('/api/history?page=1&limit=20', { credentials: 'include' });
-                const items = await res.json();
-                
-                if (items.length === 0) {
-                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);">暂无记录</div>';
-                    return;
-                }
+            const data = await res.json();
+            log('info', '收到响应', { status: res.status, success: data.success });
+            
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || '生成失败');
+            }
+            
+            result.innerHTML = `
+                <img src="${data.image_url}" class="result-image" style="max-height: 100%;">
+                <a href="${data.image_url}" target="_blank" style="margin-top: 12px; color: var(--primary);">
+                    <i class="fas fa-external-link-alt"></i> 查看原图
+                </a>
+            `;
+            log('success', '文生图成功', { image_url: data.image_url.substring(0, 50) });
+            
+        } catch (error) {
+            result.innerHTML = `
+                <div class="error-box">
+                    <strong><i class="fas fa-exclamation-triangle"></i> 生成失败</strong>
+                    <p>${error.message}</p>
+                    <p style="margin-top: 8px; font-size: 12px; opacity: 0.8;">
+                        建议检查：<br>
+                        1. API配置是否正确<br>
+                        2. API Key是否有效<br>
+                        3. 账户余额是否充足<br>
+                        4. 模型名称是否正确（dall-e-3 或 dall-e-2）
+                    </p>
+                </div>
+            `;
+            log('error', '文生图失败', error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-magic"></i> 生成图像';
+        }
+    }
 
-                grid.innerHTML = items.map(item => `
-                    <div style="background: var(--bg-card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-glass);">
-                        ${item.image_url ? 
-                            `<img src="${item.image_url}" style="width: 100%; height: 240px; object-fit: cover; background: #000;" loading="lazy">` : 
-                            '<div style="width: 100%; height: 240px; display: flex; align-items: center; justify-content: center; color: var(--text-muted);">生成失败</div>'
-                        }
-                        <div style="padding: 16px;">
-                            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                ${item.prompt || '无描述'}
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted);">
-                                <span style="background: rgba(245,158,11,0.2); color: var(--primary-light); padding: 4px 10px; border-radius: 100px;">${item.size}</span>
-                                <span>${new Date(item.created_at).toLocaleDateString()}</span>
-                            </div>
-                        </div>
+    // 图生图文件处理
+    function handleImageUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        currentImage = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('imgPreview').innerHTML = `
+                <img src="${e.target.result}" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-glass);">
+                <div style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);">
+                    ${file.name} (${(file.size/1024).toFixed(1)} KB)
+                </div>
+            `;
+            document.getElementById('imgBtn').disabled = false;
+            log('info', '图片已加载', { name: file.name, size: file.size, type: file.type });
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // 图生图（关键修复）
+    async function generateImg2Img() {
+        if (!currentImage) return alert('请先上传图片');
+        
+        const prompt = document.getElementById('imgPrompt').value;
+        const btn = document.getElementById('imgBtn');
+        const result = document.getElementById('imgResult');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 转换中...';
+        result.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 32px; color: var(--primary);"></i><p style="margin-top: 12px; color: var(--text-secondary);">正在上传并处理...</p>';
+        
+        log('info', '开始图生图请求', { prompt, imageSize: currentImage.size });
+        
+        try {
+            const formData = new FormData();
+            formData.append('image', currentImage);
+            formData.append('prompt', prompt);
+            formData.append('size', '1024x1024');
+            
+            // 关键：不要手动设置Content-Type，让浏览器自动设置boundary
+            const res = await fetch('/api/img2img', {
+                method: 'POST',
+                credentials: 'include',
+                body: formData
+            });
+            
+            const data = await res.json();
+            log('info', '收到响应', { status: res.status, success: data.success });
+            
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || data.detail || '转换失败');
+            }
+            
+            result.innerHTML = `
+                <img src="${data.image_url}" class="result-image" style="max-height: 100%;">
+                <div style="margin-top: 12px; font-size: 13px; color: var(--text-secondary);">
+                    使用端点: ${data.endpoint || 'unknown'}
+                </div>
+            `;
+            log('success', '图生图成功', { endpoint: data.endpoint });
+            
+        } catch (error) {
+            result.innerHTML = `
+                <div class="error-box">
+                    <strong><i class="fas fa-exclamation-triangle"></i> 转换失败</strong>
+                    <p>${error.message}</p>
+                    <pre>${error.stack || ''}</pre>
+                    <p style="margin-top: 8px; font-size: 12px;">
+                        图生图常见问题：<br>
+                        1. 该API可能不支持图生图功能<br>
+                        2. 图片格式不被支持（尝试用JPG/PNG）<br>
+                        3. 图片过大（建议小于5MB）<br>
+                        4. 需要使用特定的模型（如dall-e-2）
+                    </p>
+                </div>
+            `;
+            log('error', '图生图失败', error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-magic"></i> 开始转换';
+        }
+    }
+
+    // 测试连接（关键调试功能）
+    async function testConnection() {
+        const url = document.getElementById('apiUrl').value;
+        const key = document.getElementById('apiKey').value;
+        const model = document.getElementById('apiModel').value;
+        const resultDiv = document.getElementById('testResult');
+        
+        if (!url || !key) {
+            alert('请填写URL和Key');
+            return;
+        }
+        
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 测试中...';
+        log('info', '测试API连接', { url, model });
+        
+        try {
+            const res = await fetch('/api/test-connection', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ api_url: url, api_key: key, model })
+            });
+            
+            const data = await res.json();
+            log('info', '测试结果', data);
+            
+            if (data.status === 200) {
+                resultDiv.innerHTML = `<div style="color: var(--success);"><i class="fas fa-check-circle"></i> 连接成功！API工作正常</div>`;
+            } else {
+                resultDiv.innerHTML = `
+                    <div style="color: var(--danger);">
+                        <i class="fas fa-times-circle"></i> 连接失败 (状态码: ${data.status})<br>
+                        <pre style="margin-top: 8px; font-size: 11px;">${JSON.stringify(data.data, null, 2)}</pre>
                     </div>
-                `).join('');
-            } catch (e) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--danger);">加载失败</div>';
+                `;
             }
+        } catch (e) {
+            resultDiv.innerHTML = `<div style="color: var(--danger);">测试出错: ${e.message}</div>`;
+            log('error', '测试失败', e.message);
         }
+    }
 
-        // 管理员
-        async function loadAdminStats() {
-            try {
-                const [statsRes, usersRes] = await Promise.all([
-                    fetch('/api/admin/stats', { credentials: 'include' }),
-                    fetch('/api/admin/users', { credentials: 'include' })
-                ]);
-                const stats = await statsRes.json();
-                const users = await usersRes.json();
-
-                document.getElementById('statUsers').textContent = stats.total_users;
-                document.getElementById('statGens').textContent = stats.total_generations;
-                document.getElementById('statToday').textContent = stats.today_generations;
-
-                document.getElementById('adminUsersList').innerHTML = users.map(u => `
-                    <tr style="border-bottom: 1px solid var(--border-glass);">
-                        <td style="padding: 12px;">${u.email}</td>
-                        <td style="padding: 12px;">
-                            <span style="background: ${u.role === 'admin' ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.1)'}; padding: 4px 10px; border-radius: 100px; font-size: 12px;">
-                                ${u.role}
-                            </span>
-                        </td>
-                        <td style="padding: 12px;">${u.total_generations || 0}</td>
-                    </tr>
-                `).join('');
-            } catch (e) {
-                console.error('加载管理数据失败');
+    // 保存API
+    async function saveApi() {
+        const data = {
+            name: document.getElementById('apiName').value,
+            api_url: document.getElementById('apiUrl').value,
+            api_key: document.getElementById('apiKey').value,
+            model: document.getElementById('apiModel').value
+        };
+        
+        try {
+            const res = await fetch('/api/user/apis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+            
+            if (res.ok) {
+                alert('保存成功');
+                log('success', 'API配置已保存');
+            } else {
+                alert('保存失败');
             }
+        } catch (e) {
+            log('error', '保存失败', e.message);
         }
+    }
+
+    async function logout() {
+        await fetch('/api/logout', { credentials: 'include' });
+        window.location.reload();
+    }
+
+    // 初始化
+    init();
     </script>
 </body>
 </html>
