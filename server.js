@@ -2,711 +2,354 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
-const path = require('path');
 const multer = require('multer');
+const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
-const crypto = require('crypto');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ==================== 核心配置 ====================
-app.set('trust proxy', 1);
-
-// CORS配置
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-// 上传目录
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer配置
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ 
-  storage: storage, 
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('只接受图片文件'), false);
-    }
-  }
-});
-
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.static('.'));
-app.use('/uploads', express.static(uploadDir));
-
-// Session配置
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-app.use(session({
-  secret: SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  name: 'sessionId',
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'lax',
-    path: '/'
-  },
-  rolling: true
-}));
-
-// ==================== 数据库配置 ====================
-let DB_PATH = process.env.DB_PATH || './data.sqlite';
-const dataDir = path.dirname(DB_PATH);
-
-if (dataDir !== '.' && !fs.existsSync(dataDir)) {
-  try {
-    fs.mkdirSync(dataDir, { recursive: true });
-  } catch (err) {
-    DB_PATH = './data.sqlite';
-  }
-}
-
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error('数据库连接失败:', err.message);
-    process.exit(1);
-  }
-});
-
-// ==================== 数据库初始化 ====================
-function initDatabase() {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        email_verified INTEGER DEFAULT 1,
-        role TEXT DEFAULT 'user',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`);
-
-      db.run(`CREATE TABLE IF NOT EXISTS api_configs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        provider_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        api_url TEXT NOT NULL,
-        api_key TEXT NOT NULL,
-        model TEXT DEFAULT 'gemini-2.5-pro-preview',
-        is_default INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-      )`);
-
-      db.run(`CREATE TABLE IF NOT EXISTS generations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        prompt TEXT,
-        image_url TEXT,
-        size TEXT DEFAULT '1024x1024',
-        type TEXT DEFAULT 'text2img',
-        provider TEXT,
-        status TEXT,
-        error_msg TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-      )`);
-
-      const adminEmail = process.env.ADMIN_EMAIL || 'admin@banana.ai';
-      const adminPass = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'admin123', 8);
-      
-      db.run(`INSERT OR IGNORE INTO users (id, email, password, email_verified, role) 
-              VALUES (1, ?, ?, 1, 'admin')`, [adminEmail, adminPass], function(err) {
-        if (this.changes > 0) {
-          console.log('✓ 管理员已创建:', adminEmail);
-        }
-        resolve();
-      });
-    });
-  });
-}
-
-initDatabase().then(() => {
-  console.log('✓ 数据库初始化完成');
-}).catch(err => {
-  console.error('✗ 初始化失败:', err);
-  process.exit(1);
-});
-
-// ==================== 权限中间件 ====================
-const requireAuth = (req, res, next) => {
-  if (!req.session.userId) {
-    return res.status(401).json({ error: '未登录', code: 'NOT_LOGIN' });
-  }
-  next();
-};
-
-const requireAdmin = (req, res, next) => {
-  if (!req.session.userId || req.session.role !== 'admin') {
-    return res.status(403).json({ error: '无权限' });
-  }
-  next();
-};
-
-// ==================== 辅助函数 ====================
-
-function getApiEndpoints(baseUrl) {
-  const cleanBase = baseUrl.replace(/\/$/, '');
-  return {
-    generations: `${cleanBase}/images/generations`,
-    chat: `${cleanBase}/chat/completions`
-  };
-}
-
-function parseImageResponse(responseData) {
-  if (responseData.data && responseData.data[0]) {
-    return responseData.data[0].url || responseData.data[0].b64_json;
-  } else if (responseData.url) {
-    return responseData.url;
-  } else if (responseData.image_url) {
-    return responseData.image_url;
-  }
-  return null;
-}
-
-// 从聊天响应中提取图片URL
-function extractImageFromChat(content) {
-  if (!content) return null;
-  
-  // Markdown 图片格式: ![alt](url)
-  const markdownMatch = content.match(/!\[.*?\]\((https?:\/\/[^\)]+)\)/);
-  if (markdownMatch) return markdownMatch[1];
-  
-  // 纯 URL 格式
-  const urlMatch = content.match(/(https?:\/\/[^\s"<]+)/);
-  if (urlMatch) return urlMatch[0];
-  
-  return null;
-}
-
-// ==================== 内置供应商配置 ====================
-
-const BUILT_IN_PROVIDERS = [
-  {
-    id: 't8star',
-    name: '贞贞的AI工坊',
-    description: '稳定的AI图像生成服务',
-    website: 'https://ai.t8star.cn/login',
-    baseUrl: 'https://ai.t8star.cn/v1',
-    models: ['gemini-2.5-pro-preview', 'gemini-2.5-flash-preview', 'nano-banana-2'],
-    defaultModel: 'gemini-2.5-pro-preview'
-  },
-  {
-    id: 'xheai',
-    name: '星核AI (xheai.cc)',
-    description: '高速稳定的Gemini图像服务',
-    website: 'https://api.xheai.cc/console/token',
-    baseUrl: 'https://api.xheai.cc/v1',
-    models: ['gemini-2.5-pro-preview', 'gemini-2.5-flash-preview', 'gemini-2.0-flash-exp-image-generation'],
-    defaultModel: 'gemini-2.5-pro-preview'
-  }
+// 配置 - 你的三线路自动切换
+const API_ENDPOINTS = [
+  { url: 'http://152.53.166.72:3000/v1', name: '主线路' },
+  { url: 'http://152.53.90.90:3000/v1', name: '备用1' },
+  { url: 'http://38.246.249.31:3000/v1', name: '备用2' }
 ];
 
-// ==================== 路由 ====================
+const DEFAULT_MODEL = '「Rim」gemini-3-pro-image-preview';
 
-// 健康检查
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    user: req.session.userId || null,
-    time: new Date().toISOString() 
-  });
-});
+// 中间件
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.static('.'));
 
-// 获取供应商列表
-app.get('/api/providers', (req, res) => {
-  res.json(BUILT_IN_PROVIDERS);
-});
+app.use(session({
+  secret: 'banana-ai-secret-key-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+}));
 
-// ==================== 认证接口 ====================
-
-app.post('/api/auth/register', (req, res) => {
-  const { email, password } = req.body;
-  
-  if (!email || !email.includes('@') || !password || password.length < 6) {
-    return res.status(400).json({ error: '请输入有效邮箱和密码（至少6位）' });
+// 上传配置
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('只接受图片'));
   }
+});
+
+// 数据库
+const db = new sqlite3.Database('./data.db');
+
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE,
+    password TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
   
-  db.get('SELECT id FROM users WHERE email = ?', [email], (err, existing) => {
-    if (err) return res.status(500).json({ error: '系统错误' });
-    if (existing) return res.status(400).json({ error: '该邮箱已被注册' });
+  db.run(`CREATE TABLE IF NOT EXISTS configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    api_key TEXT,
+    endpoint_index INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  
+  db.run(`CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    type TEXT,
+    prompt TEXT,
+    image_url TEXT,
+    status TEXT,
+    error_msg TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // 创建默认管理员
+  const hash = bcrypt.hashSync('admin123', 8);
+  db.run(`INSERT OR IGNORE INTO users (id, email, password) VALUES (1, 'admin@banana.ai', ?)`, [hash]);
+});
+
+// 辅助函数：尝试所有端点
+async function tryEndpoints(apiKey, requestBody, type = 'chat') {
+  const errors = [];
+  
+  for (let i = 0; i < API_ENDPOINTS.length; i++) {
+    const endpoint = API_ENDPOINTS[i];
+    const url = type === 'chat' 
+      ? `${endpoint.url}/chat/completions`
+      : `${endpoint.url}/images/generations`;
     
-    const hash = bcrypt.hashSync(password, 10);
-    db.run('INSERT INTO users (email, password, email_verified) VALUES (?, ?, 1)', 
-      [email, hash],
-      function(err) {
-        if (err) return res.status(500).json({ error: '注册失败' });
-        res.json({ success: true, msg: '注册成功，请登录', userId: this.lastID });
+    try {
+      console.log(`[尝试] ${endpoint.name}: ${url}`);
+      
+      const response = await axios.post(url, requestBody, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 120000 // 2分钟超时
       });
-  });
-});
-
-app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  
-  if (!email || !password) {
-    return res.status(400).json({ error: '请输入邮箱和密码' });
+      
+      console.log(`[成功] 使用线路: ${endpoint.name}`);
+      return { success: true, data: response.data, endpoint: endpoint.name };
+      
+    } catch (error) {
+      const msg = error.response?.data?.error?.message || error.message;
+      console.error(`[失败] ${endpoint.name}: ${msg}`);
+      errors.push(`${endpoint.name}: ${msg}`);
+      
+      // 如果是401错误(API Key无效)，直接抛出，不再尝试其他线路
+      if (error.response?.status === 401) {
+        throw new Error('API Key 无效，请检查Key是否正确');
+      }
+      
+      // 继续尝试下一个端点
+      continue;
+    }
   }
   
+  // 所有端点都失败
+  throw new Error(`所有线路均失败:\n${errors.join('\n')}`);
+}
+
+// 认证中间件
+const auth = (req, res, next) => {
+  if (!req.session.userId) return res.status(401).json({ error: '未登录' });
+  next();
+};
+
+// 路由
+
+// 登录
+app.post('/api/login', (req, res) => {
+  const { email, password } = req.body;
   db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-    if (err) return res.status(500).json({ error: '系统错误' });
-    if (!user || !bcrypt.compareSync(password, user.password)) {
+    if (err || !user || !bcrypt.compareSync(password, user.password)) {
       return res.status(401).json({ error: '邮箱或密码错误' });
     }
-    
     req.session.userId = user.id;
-    req.session.role = user.role;
-    
-    req.session.save((err) => {
-      if (err) return res.status(500).json({ error: '登录失败' });
-      res.json({ success: true, role: user.role, userId: user.id, email: user.email });
-    });
+    res.json({ success: true, user: { id: user.id, email: user.email } });
   });
 });
 
-app.get('/api/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) return res.status(500).json({ error: '退出失败' });
-    res.clearCookie('sessionId');
+// 注册
+app.post('/api/register', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password || password.length < 6) {
+    return res.status(400).json({ error: '信息不完整' });
+  }
+  
+  const hash = bcrypt.hashSync(password, 10);
+  db.run('INSERT INTO users (email, password) VALUES (?, ?)', [email, hash], function(err) {
+    if (err) return res.status(400).json({ error: '邮箱已存在' });
     res.json({ success: true });
   });
 });
 
-app.get('/api/user', requireAuth, (req, res) => {
-  db.get('SELECT id, email, role, created_at FROM users WHERE id = ?', 
-    [req.session.userId], (err, user) => {
-      if (err || !user) return res.status(500).json({ error: '查询失败' });
-      res.json(user);
-    });
+// 退出
+app.post('/api/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ success: true });
 });
 
-// ==================== API配置管理 ====================
-
-app.get('/api/user/apis', requireAuth, (req, res) => {
-  db.all('SELECT * FROM api_configs WHERE user_id = ? ORDER BY is_default DESC, created_at DESC', 
-    [req.session.userId], (err, rows) => {
-      if (err) return res.status(500).json({ error: '查询失败' });
-      res.json(rows);
-    });
-});
-
-app.post('/api/user/apis', requireAuth, (req, res) => {
-  const { provider_id, name, api_url, api_key, model, is_default } = req.body;
-  
-  if (!name || !api_url || !api_key) {
-    return res.status(400).json({ error: '请填写完整信息' });
-  }
-  
-  let normalizedUrl = api_url.trim();
-  if (normalizedUrl.endsWith('/')) {
-    normalizedUrl = normalizedUrl.slice(0, -1);
-  }
-  
-  const userId = req.session.userId;
-  
-  db.serialize(() => {
-    if (is_default) {
-      db.run('UPDATE api_configs SET is_default = 0 WHERE user_id = ?', [userId]);
-    }
-    
-    db.run(`INSERT INTO api_configs (user_id, provider_id, name, api_url, api_key, model, is_default) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userId, provider_id || 'custom', name, normalizedUrl, api_key, model || 'gemini-2.5-pro-preview', is_default ? 1 : 0],
-      function(err) {
-        if (err) return res.status(500).json({ error: '保存失败' });
-        res.json({ success: true, id: this.lastID });
-      });
+// 获取用户信息
+app.get('/api/me', auth, (req, res) => {
+  db.get('SELECT id, email FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+    res.json(user);
   });
 });
 
-app.delete('/api/user/apis/:id', requireAuth, (req, res) => {
-  db.run('DELETE FROM api_configs WHERE id = ? AND user_id = ?', 
-    [req.params.id, req.session.userId],
-    function(err) {
-      if (err) return res.status(500).json({ error: '删除失败' });
-      if (this.changes === 0) return res.status(403).json({ error: '无权删除' });
+// 保存API配置
+app.post('/api/config', auth, (req, res) => {
+  const { api_key } = req.body;
+  if (!api_key) return res.status(400).json({ error: '缺少API Key' });
+  
+  db.run('INSERT OR REPLACE INTO configs (user_id, api_key) VALUES (?, ?)', 
+    [req.session.userId, api_key], 
+    (err) => {
+      if (err) return res.status(500).json({ error: '保存失败' });
       res.json({ success: true });
-    });
-});
-
-// ==================== 图像生成核心逻辑 ====================
-
-// 文生图 - 支持多模型自动重试
-app.post('/api/generate', requireAuth, async (req, res) => {
-  const { prompt, size = '1024x1024' } = req.body;
-  const userId = req.session.userId;
-  
-  if (!prompt || prompt.trim().length === 0) {
-    return res.status(400).json({ error: '请输入提示词' });
-  }
-  
-  const config = await new Promise((resolve) => {
-    db.get('SELECT * FROM api_configs WHERE user_id = ? AND is_default = 1 LIMIT 1',
-      [userId], (err, row) => resolve(row));
-  });
-  
-  if (!config) return res.status(400).json({ error: '请先配置默认API' });
-  if (!config.api_key) return res.status(400).json({ error: 'API Key为空' });
-  
-  const endpoints = getApiEndpoints(config.api_url);
-  
-  // 尝试的模型列表（按优先级）
-  const modelsToTry = [
-    config.model,
-    'gemini-2.5-pro-preview',
-    'gemini-2.5-flash-preview',
-    'nano-banana-2'
-  ].filter((v, i, a) => a.indexOf(v) === i); // 去重
-  
-  let lastError = null;
-  
-  for (const model of modelsToTry) {
-    if (!model) continue;
-    
-    try {
-      console.log(`[文生图] 尝试模型: ${model}`);
-      
-      const requestBody = {
-        model: model,
-        prompt: prompt,
-        n: 1,
-        size: size
-      };
-      
-      const response = await axios.post(
-        endpoints.generations,
-        requestBody,
-        {
-          headers: {
-            'Authorization': `Bearer ${config.api_key}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 120000
-        }
-      );
-      
-      const imageUrl = parseImageResponse(response.data);
-      
-      if (imageUrl) {
-        console.log(`[文生图] 成功使用模型: ${model}`);
-        db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [userId, prompt, imageUrl, size, 'text2img', config.name, 'success']);
-        return res.json({ success: true, image_url: imageUrl, size, model });
-      }
-      
-    } catch (error) {
-      console.log(`[文生图] 模型 ${model} 失败:`, error.response?.data?.error?.message || error.message);
-      lastError = error;
-      
-      // 如果是模型不存在，继续尝试下一个
-      const errorMsg = error.response?.data?.error?.message || '';
-      if (errorMsg.includes('model') && errorMsg.includes('not found')) {
-        continue;
-      }
-      // 其他错误（如认证失败）直接中断
-      break;
     }
-  }
-  
-  // 所有模型都失败
-  const errorDetail = lastError?.response?.data?.error?.message || lastError?.message || '未知错误';
-  db.run('INSERT INTO generations (user_id, prompt, size, type, status, error_msg) VALUES (?, ?, ?, ?, ?, ?)',
-    [userId, prompt, size, 'text2img', 'failed', errorDetail]);
-  res.status(500).json({ error: '生成失败', detail: errorDetail });
+  );
 });
 
-// 图生图 - 使用 Chat Completions (Vision)
-app.post('/api/img2img', requireAuth, upload.array('images', 4), async (req, res) => {
-  const { prompt, size = '1024x1024' } = req.body;
+// 获取配置
+app.get('/api/config', auth, (req, res) => {
+  db.get('SELECT * FROM configs WHERE user_id = ?', [req.session.userId], (err, config) => {
+    res.json(config || {});
+  });
+});
+
+// 核心：图生图
+app.post('/api/img2img', auth, upload.array('images', 4), async (req, res) => {
   const userId = req.session.userId;
+  const { prompt } = req.body;
   
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: '请上传图片' });
   }
-  
+
+  // 获取用户配置
   const config = await new Promise((resolve) => {
-    db.get('SELECT * FROM api_configs WHERE user_id = ? AND is_default = 1 LIMIT 1',
-      [req.session.userId], (err, row) => resolve(row));
+    db.get('SELECT * FROM configs WHERE user_id = ?', [userId], (err, row) => resolve(row));
   });
-  
+
   if (!config || !config.api_key) {
+    // 清理文件
     req.files.forEach(f => fs.unlinkSync(f.path));
-    return res.status(400).json({ error: '请先配置API' });
+    return res.status(400).json({ error: '请先设置API Key' });
   }
-  
+
   try {
-    // 读取所有图片转为 Base64
+    // 读取图片为Base64
     const imageContents = req.files.map(file => {
       const buffer = fs.readFileSync(file.path);
       const base64 = buffer.toString('base64');
+      fs.unlinkSync(file.path); // 立即删除临时文件
+      
       return {
         type: 'image_url',
         image_url: {
-          url: `data:${file.mimetype};base64,${base64}`
+          url: `data:image/jpeg;base64,${base64}`
         }
       };
     });
-    
-    // 清理上传文件
-    req.files.forEach(f => fs.unlinkSync(f.path));
-    
-    const endpoints = getApiEndpoints(config.api_url);
-    
-    // 图生图尝试的模型（Gemini Vision 模型）
-    const visionModels = [
-      'gemini-2.5-pro-preview',
-      'gemini-2.5-flash-preview',
-      'gemini-2.0-flash-exp-image-generation',
-      'gpt-4o',
-      'gpt-4o-mini'
-    ];
-    
-    // 优先使用用户配置的模型，如果它包含在visionModels中
-    let modelsToTry = visionModels;
-    if (config.model && visionModels.includes(config.model)) {
-      modelsToTry = [config.model, ...visionModels.filter(m => m !== config.model)];
-    }
-    
-    let lastError = null;
-    
-    for (const model of modelsToTry) {
-      try {
-        console.log(`[图生图] 尝试模型: ${model}`);
-        
-        const requestBody = {
-          model: model,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                ...imageContents,
-                {
-                  type: 'text',
-                  text: prompt || '根据参考图片生成新的图像，保持风格一致'
-                }
-              ]
-            }
-          ],
-          max_tokens: 4096,
-          temperature: 0.7
-        };
-        
-        const response = await axios.post(
-          endpoints.chat,
-          requestBody,
-          {
-            headers: {
-              'Authorization': `Bearer ${config.api_key}`,
-              'Content-Type': 'application/json'
-            },
-            timeout: 300000
-          }
-        );
-        
-        const content = response.data.choices?.[0]?.message?.content || '';
-        const imageUrl = extractImageFromChat(content);
-        
-        if (imageUrl) {
-          console.log(`[图生图] 成功使用模型: ${model}`);
-          db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [userId, prompt, imageUrl, size, 'img2img', config.name, 'success']);
-          return res.json({ success: true, image_url: imageUrl, model });
-        } else {
-          console.log(`[图生图] 模型 ${model} 返回内容:`, content.substring(0, 200));
-        }
-        
-      } catch (err) {
-        console.log(`[图生图] 模型 ${model} 失败:`, err.response?.data?.error?.message || err.message);
-        lastError = err;
-        
-        // 如果是模型不存在，继续尝试
-        const errorMsg = err.response?.data?.error?.message || '';
-        if (errorMsg.includes('model') && (errorMsg.includes('not found') || errorMsg.includes('does not exist'))) {
-          continue;
-        }
-        // 认证错误直接中断
-        if (err.response?.status === 401) break;
-      }
-    }
-    
-    // 都失败了
-    throw lastError || new Error('所有模型均无法生成图像');
-    
-  } catch (error) {
-    req.files.forEach(f => {
-      try { fs.unlinkSync(f.path); } catch(e) {}
-    });
-    
-    console.error('[图生图] 最终错误:', error.response?.data || error.message);
-    const errorMsg = error.response?.data?.error?.message || error.message;
-    res.status(500).json({ error: '图生图失败', detail: errorMsg });
-  }
-});
 
-// 多图融合
-app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, res) => {
-  const { prompt, size = '1024x1024' } = req.body;
-  const userId = req.session.userId;
-  
-  if (!req.files || req.files.length < 2) {
-    return res.status(400).json({ error: '请上传至少两张图片' });
-  }
-  
-  const config = await new Promise((resolve) => {
-    db.get('SELECT * FROM api_configs WHERE user_id = ? AND is_default = 1 LIMIT 1',
-      [req.session.userId], (err, row) => resolve(row));
-  });
-  
-  if (!config || !config.api_key) {
-    req.files.forEach(f => fs.unlinkSync(f.path));
-    return res.status(400).json({ error: '请先配置API' });
-  }
-  
-  try {
-    const imageContents = req.files.map(file => {
-      const buffer = fs.readFileSync(file.path);
-      const base64 = buffer.toString('base64');
-      return {
-        type: 'image_url',
-        image_url: { url: `data:${file.mimetype};base64,${base64}` }
-      };
-    });
-    
-    req.files.forEach(f => fs.unlinkSync(f.path));
-    
-    const endpoints = getApiEndpoints(config.api_url);
-    const model = 'gemini-2.5-pro-preview';
-    
-    const fusionPrompt = prompt || `融合这${req.files.length}张图片的元素，生成一张新图像`;
-    
-    const response = await axios.post(
-      endpoints.chat,
-      {
-        model: model,
-        messages: [{
+    // 构建请求体 - 严格按照Gemini Vision格式
+    const requestBody = {
+      model: DEFAULT_MODEL, // 使用准确的模型名：「Rim」gemini-3-pro-image-preview
+      messages: [
+        {
           role: 'user',
           content: [
             ...imageContents,
-            { type: 'text', text: fusionPrompt }
+            {
+              type: 'text',
+              text: prompt || '根据参考图生成新图像'
+            }
           ]
-        }],
-        max_tokens: 4096
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${config.api_key}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 300000
-      }
-    );
+        }
+      ],
+      max_tokens: 4096,
+      temperature: 0.8
+    };
+
+    console.log('[图生图] 开始请求，模型:', DEFAULT_MODEL);
+    console.log('[图生图] 图片数:', imageContents.length);
     
-    const content = response.data.choices?.[0]?.message?.content || '';
-    const imageUrl = extractImageFromChat(content);
+    // 尝试所有端点
+    const result = await tryEndpoints(config.api_key, requestBody, 'chat');
     
-    if (!imageUrl) throw new Error('未能提取图片URL');
+    // 解析返回的图片URL
+    const content = result.data.choices?.[0]?.message?.content || '';
+    let imageUrl = null;
     
-    db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [userId, prompt, imageUrl, size, 'multi-ref', config.name, 'success']);
+    // 匹配markdown图片格式: ![](url)
+    const mdMatch = content.match(/!\[.*?\]\((https?:\/\/[^\)]+)\)/);
+    if (mdMatch) {
+      imageUrl = mdMatch[1];
+    } else {
+      // 匹配纯URL
+      const urlMatch = content.match(/(https?:\/\/[^\s"<]+)/);
+      if (urlMatch) imageUrl = urlMatch[0];
+    }
+
+    if (!imageUrl) {
+      console.log('[图生图] 返回内容:', content);
+      throw new Error('无法从响应中提取图片URL，可能生成了白图或失败');
+    }
+
+    // 保存历史
+    db.run('INSERT INTO history (user_id, type, prompt, image_url, status) VALUES (?, ?, ?, ?, ?)',
+      [userId, 'img2img', prompt, imageUrl, 'success']);
     
-    res.json({ success: true, image_url: imageUrl });
-    
-  } catch (error) {
-    req.files.forEach(f => {
-      try { fs.unlinkSync(f.path); } catch(e) {}
+    res.json({ 
+      success: true, 
+      image_url: imageUrl,
+      endpoint: result.endpoint,
+      model: DEFAULT_MODEL
     });
-    console.error('[多图融合] 错误:', error.message);
-    res.status(500).json({ error: '融合失败', detail: error.response?.data?.error?.message || error.message });
+
+  } catch (error) {
+    // 清理文件
+    req.files.forEach(f => {
+      try { if(fs.existsSync(f.path)) fs.unlinkSync(f.path); } catch(e) {}
+    });
+    
+    console.error('[图生图] 失败:', error.message);
+    
+    // 保存失败记录
+    db.run('INSERT INTO history (user_id, type, prompt, status, error_msg) VALUES (?, ?, ?, ?, ?)',
+      [userId, 'img2img', prompt, 'failed', error.message]);
+    
+    res.status(500).json({ 
+      error: '生成失败', 
+      detail: error.message,
+      suggestion: '可能原因：1.服务器拥挤(出白图) 2.API Key无效 3.图片过大'
+    });
   }
 });
 
-// ==================== 历史记录与管理 ====================
-
-app.get('/api/history', requireAuth, (req, res) => {
-  const { page = 1, limit = 20 } = req.query;
-  const offset = (page - 1) * limit;
+// 文生图（备用功能）
+app.post('/api/text2img', auth, async (req, res) => {
+  const { prompt } = req.body;
+  const userId = req.session.userId;
   
-  db.all('SELECT * FROM generations WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
-    [req.session.userId, parseInt(limit), parseInt(offset)],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: '查询失败' });
-      res.json(rows);
-    });
-});
-
-app.delete('/api/history/:id', requireAuth, (req, res) => {
-  db.run('DELETE FROM generations WHERE id = ? AND user_id = ?', 
-    [req.params.id, req.session.userId],
-    function(err) {
-      if (err) return res.status(500).json({ error: '删除失败' });
-      if (this.changes === 0) return res.status(403).json({ error: '无权删除' });
-      res.json({ success: true });
-    });
-});
-
-app.get('/api/admin/users', requireAdmin, (req, res) => {
-  db.all(`SELECT u.id, u.email, u.role, u.created_at, COUNT(g.id) as total_generations
-          FROM users u LEFT JOIN generations g ON u.id = g.user_id
-          GROUP BY u.id ORDER BY u.id DESC`, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: '查询失败' });
-    res.json(rows);
+  const config = await new Promise((resolve) => {
+    db.get('SELECT * FROM configs WHERE user_id = ?', [userId], (err, row) => resolve(row));
   });
+  
+  if (!config || !config.api_key) {
+    return res.status(400).json({ error: '未配置API Key' });
+  }
+
+  try {
+    const requestBody = {
+      model: DEFAULT_MODEL,
+      prompt: prompt,
+      n: 1,
+      size: '1024x1024' // 推荐2K，但先用1024
+    };
+    
+    const result = await tryEndpoints(config.api_key, requestBody, 'generations');
+    const imageUrl = result.data.data?.[0]?.url;
+    
+    if (!imageUrl) throw new Error('未获取到图片URL');
+    
+    db.run('INSERT INTO history (user_id, type, prompt, image_url, status) VALUES (?, ?, ?, ?, ?)',
+      [userId, 'text2img', prompt, imageUrl, 'success']);
+    
+    res.json({ success: true, image_url: imageUrl, endpoint: result.endpoint });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get('/api/admin/stats', requireAdmin, (req, res) => {
-  db.get('SELECT COUNT(*) as total_users FROM users', [], (err, u) => {
-    db.get('SELECT COUNT(*) as total_gens FROM generations', [], (err, g) => {
-      db.get(`SELECT COUNT(*) as today_gens FROM generations 
-              WHERE date(created_at) = date('now')`, [], (err, t) => {
-        res.json({
-          total_users: u?.total_users || 0,
-          total_generations: g?.total_gens || 0,
-          today_generations: t?.today_gens || 0
-        });
-      });
+// 获取历史记录
+app.get('/api/history', auth, (req, res) => {
+  db.all('SELECT * FROM history WHERE user_id = ? ORDER BY created_at DESC LIMIT 20', 
+    [req.session.userId], (err, rows) => {
+      res.json(rows || []);
     });
-  });
 });
 
 // 错误处理
 app.use((err, req, res, next) => {
-  console.error('服务器错误:', err);
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: '文件过大，最大支持10MB' });
-    }
-  }
-  res.status(500).json({ error: '服务器内部错误', message: err.message });
+  console.error(err);
+  res.status(500).json({ error: err.message });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🍌 香蕉AI服务器运行在端口 ${PORT}`);
-  console.log(`📁 上传目录: ${uploadDir}`);
-  console.log(`💾 数据库: ${DB_PATH}`);
+app.listen(PORT, () => {
+  console.log(`🍌 香蕉AI v2.0 运行在端口 ${PORT}`);
+  console.log(`📡 配置线路: ${API_ENDPOINTS.map(e => e.name).join(', ')}`);
+  console.log(`🤖 默认模型: ${DEFAULT_MODEL}`);
 });
