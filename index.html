@@ -37,7 +37,6 @@
             overflow: hidden;
         }
 
-        /* 登录页 */
         .auth-container {
             min-height: 100vh;
             display: flex;
@@ -170,7 +169,6 @@
         .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; }
         .alert-success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: #4ade80; }
 
-        /* 主应用 */
         .app-container {
             display: none;
             height: 100vh;
@@ -182,7 +180,6 @@
             height: 100%;
         }
 
-        /* 侧边栏 */
         .sidebar {
             width: 260px;
             background: var(--bg-card);
@@ -270,7 +267,6 @@
             text-align: center;
         }
 
-        /* 主内容 */
         .main-content {
             flex: 1;
             display: flex;
@@ -337,7 +333,6 @@
             padding: 24px;
         }
 
-        /* 生成页面 - 图生图优化布局 */
         .generate-layout {
             display: grid;
             grid-template-columns: 480px 1fr;
@@ -374,7 +369,6 @@
             padding: 24px;
         }
 
-        /* 上传区域 - 图生图特化 */
         .upload-zone {
             border: 2px dashed var(--border-glass);
             border-radius: 12px;
@@ -437,7 +431,6 @@
             display: none;
         }
 
-        /* 图片预览 - 图生图 */
         .preview-container {
             margin-top: 16px;
             position: relative;
@@ -584,7 +577,6 @@
             cursor: not-allowed;
         }
 
-        /* 结果区域 */
         .result-area {
             flex: 1;
             display: flex;
@@ -643,7 +635,6 @@
             margin-bottom: 16px;
         }
 
-        /* 提示信息 */
         .helper-text {
             font-size: 13px;
             color: var(--text-muted);
@@ -784,10 +775,11 @@
                                 <i class="fas fa-sparkles"></i> AI 图像生成
                             </div>
                             <h2 style="font-size: 48px; font-weight: 800; margin-bottom: 16px; background: linear-gradient(135deg, #fff 0%, var(--primary-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                                图生图专家
+                                Gemini 图生图专家
                             </h2>
                             <p style="font-size: 18px; color: var(--text-secondary); max-width: 600px; margin: 0 auto 32px;">
-                                上传图片，AI智能重绘、风格转换、细节增强
+                                上传图片，AI智能重绘、风格转换、细节增强<br>
+                                <span style="font-size: 14px; opacity: 0.7;">支持 gemini-3-pro-image-preview 模型</span>
                             </p>
                             <div style="display: flex; gap: 16px; justify-content: center;">
                                 <button class="btn-primary" style="width: auto; padding: 16px 32px;" onclick="navigate('img2img')">
@@ -849,46 +841,34 @@
                         </div>
                     </div>
 
-                    <!-- 图生图 - 重点优化 -->
+                    <!-- 图生图 -->
                     <div id="page-img2img" class="page hidden">
                         <div class="generate-layout">
                             <div class="panel">
                                 <div class="panel-header">
-                                    <i class="fas fa-sliders-h"></i> 上传与设置
+                                    <i class="fas fa-sliders-h"></i> 上传与设置 (Gemini Vision)
                                 </div>
                                 <div class="panel-body">
-                                    <label class="form-label">上传原图 <span style="color: var(--danger);">*</span></label>
+                                    <label class="form-label">上传参考图 <span style="color: var(--danger);">*</span></label>
                                     <div class="upload-zone" id="i2iUploadZone" onclick="document.getElementById('i2iFile').click()">
                                         <div class="upload-content" id="i2iUploadContent">
                                             <div class="upload-icon">
                                                 <i class="fas fa-cloud-upload-alt"></i>
                                             </div>
                                             <div class="upload-text">点击或拖拽上传图片</div>
-                                            <div class="upload-hint">支持 JPG、PNG，最大 10MB</div>
+                                            <div class="upload-hint">支持多图（最多4张），用于参考生成</div>
                                         </div>
-                                        <input type="file" id="i2iFile" class="file-input" accept="image/*" onchange="handleI2IFile(event)">
+                                        <input type="file" id="i2iFile" class="file-input" accept="image/*" multiple onchange="handleI2IFiles(event)">
                                     </div>
-                                    <div id="i2iPreview" style="margin-top: 12px;"></div>
+                                    <div id="i2iPreview" class="multi-preview-grid" style="display: none;"></div>
                                     
-                                    <p class="helper-text">
+                                    <p class="helper-text" style="margin-top: 12px;">
                                         <i class="fas fa-info-circle"></i> 
-                                        提示：某些API要求图片必须是正方形且小于4MB
+                                        提示：图生图使用 gemini-3-pro-image-preview 模型，通过 Chat Completions API 处理
                                     </p>
 
-                                    <label class="form-label" style="margin-top: 24px;">输出尺寸</label>
-                                    <div class="size-selector" id="i2iSizes">
-                                        <div class="size-option active" data-size="1024x1024" onclick="selectSize('i2i', this)">
-                                            <span class="size-label">保持</span>
-                                            <span class="size-value">1024²</span>
-                                        </div>
-                                        <div class="size-option" data-size="512x512" onclick="selectSize('i2i', this)">
-                                            <span class="size-label">小图</span>
-                                            <span class="size-value">512²</span>
-                                        </div>
-                                    </div>
-
-                                    <label class="form-label">转换描述（可选）</label>
-                                    <textarea id="i2iPrompt" class="prompt-input" placeholder="描述如何修改图片，例如：转换成赛博朋克风格、添加油画质感、修复清晰度..."></textarea>
+                                    <label class="form-label" style="margin-top: 24px;">转换描述</label>
+                                    <textarea id="i2iPrompt" class="prompt-input" placeholder="描述如何修改图片，例如：转换成赛博朋克风格、添加油画质感..."></textarea>
 
                                     <button class="generate-btn" id="i2iBtn" onclick="generateImg2Img()" disabled>
                                         <i class="fas fa-wand-magic-sparkles"></i> 开始转换
@@ -920,13 +900,13 @@
                                     <i class="fas fa-sliders-h"></i> 多图上传
                                 </div>
                                 <div class="panel-body">
-                                    <label class="form-label">上传参考图（1-4张）<span style="color: var(--danger);">*</span></label>
+                                    <label class="form-label">上传参考图（2-4张）<span style="color: var(--danger);">*</span></label>
                                     <div class="upload-zone" id="multiUploadZone" onclick="document.getElementById('multiFiles').click()">
                                         <div class="upload-icon">
                                             <i class="fas fa-images"></i>
                                         </div>
                                         <div class="upload-text">点击或拖拽上传多张图片</div>
-                                        <div class="upload-hint">支持 1-4 张图片</div>
+                                        <div class="upload-hint">支持 2-4 张图片融合</div>
                                         <input type="file" id="multiFiles" class="file-input" accept="image/*" multiple onchange="handleMultiFiles(event)">
                                     </div>
                                     <div id="multiPreview" class="multi-preview-grid" style="display: none;"></div>
@@ -966,7 +946,7 @@
                                 </div>
                                 <div class="panel-body">
                                     <p style="color: var(--text-secondary); margin-bottom: 16px;">
-                                        点击下方按钮一键配置贞贞的AI工坊API
+                                        点击下方按钮一键配置贞贞的AI工坊API（使用 Gemini 模型）
                                     </p>
                                     <button class="btn-primary" onclick="quickSetupT8Star()">
                                         <i class="fas fa-magic"></i> 一键配置贞贞的AI工坊
@@ -988,8 +968,7 @@
                                         <input type="text" id="apiUrl" class="form-input" placeholder="https://ai.t8star.cn/v1">
                                         <p class="helper-text">
                                             <i class="fas fa-info-circle"></i> 
-                                            只需填写基础URL，如 https://ai.t8star.cn/v1<br>
-                                            文生图会自动使用 /images/generations，图生图会使用 /images/edits
+                                            基础URL，如 https://ai.t8star.cn/v1（不含后缀）
                                         </p>
                                     </div>
                                     <div class="form-group">
@@ -998,8 +977,11 @@
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label">模型</label>
-                                        <input type="text" id="apiModel" class="form-input" placeholder="nano-banana-2" value="nano-banana-2">
-                                        <p class="helper-text">推荐: nano-banana-2, dall-e-3, flux-dev</p>
+                                        <input type="text" id="apiModel" class="form-input" placeholder="gemini-3-pro-image-preview" value="gemini-3-pro-image-preview">
+                                        <p class="helper-text">
+                                            <strong>文生图：</strong>nano-banana-2, gemini-3-pro-image-preview<br>
+                                            <strong>图生图：</strong>必须使用 gemini-3-pro-image-preview（支持Vision）
+                                        </p>
                                     </div>
                                     <button class="btn-primary" onclick="saveApiConfig()">
                                         <i class="fas fa-save"></i> 保存配置
@@ -1072,7 +1054,7 @@
         // 状态管理
         let currentUser = null;
         let selectedSizes = { t2i: '1024x1024', i2i: '1024x1024', multi: '1024x1024' };
-        let i2iFile = null;
+        let i2iFiles = [];
         let multiFiles = [];
 
         // 初始化
@@ -1087,8 +1069,6 @@
                     currentUser = await res.json();
                     showApp();
                     updateUI();
-                    // 如果主要用图生图，可以默认跳转到图生图页面
-                    // navigate('img2img');
                 } else {
                     showAuth();
                 }
@@ -1207,7 +1187,6 @@
             if (page === 'settings') loadApiList();
             if (page === 'admin' && currentUser?.role === 'admin') loadAdminStats();
             
-            // 初始化拖拽
             if (page === 'img2img') setupDragAndDrop('i2i');
             if (page === 'multi') setupDragAndDrop('multi');
         }
@@ -1219,7 +1198,6 @@
             selectedSizes[type] = el.dataset.size;
         }
 
-        // 拖拽上传设置
         function setupDragAndDrop(type) {
             const zoneId = type === 'i2i' ? 'i2iUploadZone' : 'multiUploadZone';
             const zone = document.getElementById(zoneId);
@@ -1245,7 +1223,7 @@
                 const files = dt.files;
                 
                 if (type === 'i2i' && files.length > 0) {
-                    handleFile(files[0], 'i2i');
+                    handleFiles(Array.from(files).slice(0, 4), 'i2i');
                 } else if (type === 'multi') {
                     handleFiles(Array.from(files).slice(0, 4), 'multi');
                 }
@@ -1286,63 +1264,105 @@
             }
         }
 
-        // 图生图处理
-        function handleI2IFile(e) {
-            const file = e.target.files[0];
-            if (file) handleFile(file, 'i2i');
+        // 图生图 - 支持多图
+        function handleI2IFiles(e) {
+            const files = Array.from(e.target.files);
+            handleFiles(files, 'i2i');
         }
 
-        function handleFile(file, type) {
-            if (!file.type.startsWith('image/')) {
-                alert('请上传图片文件');
-                return;
+        function handleMultiFiles(e) {
+            const files = Array.from(e.target.files);
+            handleFiles(files, 'multi');
+        }
+
+        function handleFiles(files, type) {
+            const validFiles = files.filter(f => {
+                if (!f.type.startsWith('image/')) {
+                    alert(`${f.name} 不是图片文件`);
+                    return false;
+                }
+                if (f.size > 10 * 1024 * 1024) {
+                    alert(`${f.name} 超过10MB`);
+                    return false;
+                }
+                return true;
+            }).slice(0, 4);
+
+            if (validFiles.length === 0) return;
+
+            if (type === 'i2i') {
+                i2iFiles = validFiles;
+                renderPreviews(validFiles, 'i2i');
+                document.getElementById('i2iBtn').disabled = false;
+            } else {
+                multiFiles = validFiles;
+                renderPreviews(validFiles, 'multi');
+                document.getElementById('multiBtn').disabled = validFiles.length >= 2;
             }
-            if (file.size > 10 * 1024 * 1024) {
-                alert('文件过大，最大支持10MB');
-                return;
-            }
-            
-            i2iFile = file;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const preview = document.getElementById('i2iPreview');
-                preview.innerHTML = `
-                    <div class="preview-container">
-                        <img src="${e.target.result}" class="preview-image">
-                        <button class="preview-remove" onclick="removeI2IFile()" title="删除图片">
+        }
+
+        function renderPreviews(files, type) {
+            const containerId = type === 'i2i' ? 'i2iPreview' : 'multiPreview';
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            container.style.display = 'grid';
+
+            files.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'multi-preview-item';
+                    div.innerHTML = `
+                        <img src="${e.target.result}">
+                        <button class="preview-remove" onclick="removeFile('${type}', ${index})" style="top: -8px; right: -8px;">
                             <i class="fas fa-times"></i>
                         </button>
-                    </div>
-                `;
-                document.getElementById('i2iUploadZone').classList.add('has-file');
-                document.getElementById('i2iBtn').disabled = false;
-            };
-            reader.readAsDataURL(file);
+                    `;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
         }
 
-        function removeI2IFile() {
-            i2iFile = null;
-            document.getElementById('i2iPreview').innerHTML = '';
-            document.getElementById('i2iUploadZone').classList.remove('has-file');
-            document.getElementById('i2iFile').value = '';
-            document.getElementById('i2iBtn').disabled = true;
+        function removeFile(type, index) {
+            if (type === 'i2i') {
+                i2iFiles.splice(index, 1);
+                if (i2iFiles.length === 0) {
+                    document.getElementById('i2iPreview').innerHTML = '';
+                    document.getElementById('i2iPreview').style.display = 'none';
+                    document.getElementById('i2iFile').value = '';
+                    document.getElementById('i2iBtn').disabled = true;
+                } else {
+                    renderPreviews(i2iFiles, 'i2i');
+                }
+            } else {
+                multiFiles.splice(index, 1);
+                if (multiFiles.length === 0) {
+                    document.getElementById('multiPreview').innerHTML = '';
+                    document.getElementById('multiPreview').style.display = 'none';
+                    document.getElementById('multiFiles').value = '';
+                    document.getElementById('multiBtn').disabled = true;
+                } else {
+                    renderPreviews(multiFiles, 'multi');
+                    document.getElementById('multiBtn').disabled = multiFiles.length < 2;
+                }
+            }
         }
 
-        // 图生图生成 - 核心功能
         async function generateImg2Img() {
-            if (!i2iFile) return alert('请先上传图片');
+            if (i2iFiles.length === 0) return alert('请先上传图片');
 
             const prompt = document.getElementById('i2iPrompt').value;
             const btn = document.getElementById('i2iBtn');
             const result = document.getElementById('i2iResult');
             
             const formData = new FormData();
-            formData.append('image', i2iFile);
+            i2iFiles.forEach(f => formData.append('images', f));
             formData.append('prompt', prompt);
             formData.append('size', selectedSizes.i2i);
 
             btn.disabled = true;
-            result.innerHTML = '<div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">AI处理中，可能需要30-60秒...</p>';
+            result.innerHTML = '<div class="loading-spinner"></div><p style="margin-top: 20px; color: var(--text-secondary);">Gemini Vision 处理中（约需30-60秒）...</p>';
 
             try {
                 const res = await fetch('/api/img2img', {
@@ -1357,18 +1377,22 @@
                         <img src="${data.image_url}" class="result-image" ondblclick="window.open('${data.image_url}')" style="cursor: zoom-in;">
                         <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 16px; border-radius: 20px; font-size: 13px;">
                             <i class="fas fa-check-circle" style="color: var(--success); margin-right: 6px;"></i>
-                            双击查看原图 | 右键保存
+                            ${data.model || 'gemini-3-pro'} | 双击查看原图
                         </div>
                     `;
                 } else {
                     throw new Error(data.error || data.detail || '处理失败');
                 }
             } catch (e) {
+                let errorMsg = e.message;
+                if (errorMsg.includes('model')) {
+                    errorMsg = '模型不支持图生图，请确认使用 gemini-3-pro-image-preview';
+                }
                 result.innerHTML = `
                     <div class="error-message">
                         <i class="fas fa-exclamation-circle"></i>
-                        <p>${e.message}</p>
-                        <p style="font-size: 13px; margin-top: 8px; opacity: 0.8;">提示：请确保API支持图生图功能（/images/edits）</p>
+                        <p>${errorMsg}</p>
+                        <p style="font-size: 13px; margin-top: 8px; opacity: 0.8;">提示：图生图必须使用 gemini-3-pro-image-preview 模型</p>
                     </div>
                 `;
             } finally {
@@ -1377,79 +1401,8 @@
             }
         }
 
-        // 多图处理
-        function handleMultiFiles(e) {
-            const files = Array.from(e.target.files).slice(0, 4);
-            handleFiles(files, 'multi');
-        }
-
-        function handleFiles(files, type) {
-            multiFiles = files.filter(f => {
-                if (!f.type.startsWith('image/')) {
-                    alert(`${f.name} 不是图片文件`);
-                    return false;
-                }
-                if (f.size > 10 * 1024 * 1024) {
-                    alert(`${f.name} 超过10MB`);
-                    return false;
-                }
-                return true;
-            });
-
-            if (multiFiles.length === 0) return;
-
-            const preview = document.getElementById('multiPreview');
-            preview.innerHTML = '';
-            preview.style.display = 'grid';
-            
-            multiFiles.forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    preview.innerHTML += `
-                        <div class="multi-preview-item">
-                            <img src="${e.target.result}">
-                            <button class="preview-remove" onclick="removeMultiFile(${index})" style="top: -8px; right: -8px;">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                    `;
-                };
-                reader.readAsDataURL(file);
-            });
-            
-            document.getElementById('multiBtn').disabled = false;
-        }
-
-        function removeMultiFile(index) {
-            multiFiles.splice(index, 1);
-            if (multiFiles.length === 0) {
-                document.getElementById('multiPreview').innerHTML = '';
-                document.getElementById('multiPreview').style.display = 'none';
-                document.getElementById('multiFiles').value = '';
-                document.getElementById('multiBtn').disabled = true;
-            } else {
-                // 重新渲染
-                const preview = document.getElementById('multiPreview');
-                preview.innerHTML = '';
-                multiFiles.forEach((file, idx) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        preview.innerHTML += `
-                            <div class="multi-preview-item">
-                                <img src="${e.target.result}">
-                                <button class="preview-remove" onclick="removeMultiFile(${idx})" style="top: -8px; right: -8px;">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                        `;
-                    };
-                    reader.readAsDataURL(file);
-                });
-            }
-        }
-
         async function generateMulti() {
-            if (multiFiles.length === 0) return alert('请至少上传一张图片');
+            if (multiFiles.length < 2) return alert('请至少上传两张图片');
 
             const prompt = document.getElementById('multiPrompt').value;
             const btn = document.getElementById('multiBtn');
@@ -1515,7 +1468,6 @@
             }
         }
 
-        // 一键配置贞贞的AI工坊
         function quickSetupT8Star() {
             const apiKey = prompt('请输入您的API Key (sk-...):');
             if (!apiKey || !apiKey.startsWith('sk-')) {
@@ -1526,9 +1478,8 @@
             document.getElementById('apiName').value = '贞贞的AI工坊';
             document.getElementById('apiUrl').value = 'https://ai.t8star.cn/v1';
             document.getElementById('apiKey').value = apiKey;
-            document.getElementById('apiModel').value = 'nano-banana-2';
+            document.getElementById('apiModel').value = 'gemini-3-pro-image-preview';
             
-            // 自动保存
             saveApiConfig();
         }
 
@@ -1540,12 +1491,8 @@
 
             if (!name || !api_url || !api_key) return alert('请填写完整信息');
             
-            // 标准化URL
             if (api_url.endsWith('/')) {
                 api_url = api_url.slice(0, -1);
-            }
-            if (api_url.endsWith('/images/generations')) {
-                api_url = api_url.replace('/images/generations', '');
             }
 
             try {
@@ -1553,16 +1500,22 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ name, api_url, api_key, model: model || 'nano-banana-2', is_default: true })
+                    body: JSON.stringify({ 
+                        name, 
+                        api_url, 
+                        api_key, 
+                        model: model || 'gemini-3-pro-image-preview', 
+                        is_default: true 
+                    })
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('保存成功！现在可以使用文生图、图生图功能了');
+                    alert('保存成功！请使用 gemini-3-pro-image-preview 模型进行图生图');
                     loadApiList();
                     document.getElementById('apiName').value = '';
                     document.getElementById('apiUrl').value = '';
                     document.getElementById('apiKey').value = '';
-                    document.getElementById('apiModel').value = 'nano-banana-2';
+                    document.getElementById('apiModel').value = 'gemini-3-pro-image-preview';
                 } else {
                     alert(data.error || '保存失败');
                 }
@@ -1607,7 +1560,7 @@
                                 ${item.prompt || '无描述'}
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted);">
-                                <span style="background: rgba(245,158,11,0.2); color: var(--primary-light); padding: 4px 10px; border-radius: 100px;">${item.size}</span>
+                                <span style="background: rgba(245,158,11,0.2); color: var(--primary-light); padding: 4px 10px; border-radius: 100px;">${item.type === 'img2img' ? '图生图' : item.type === 'multi-ref' ? '多图融合' : '文生图'}</span>
                                 <span>${new Date(item.created_at).toLocaleDateString()}</span>
                             </div>
                         </div>
