@@ -113,7 +113,7 @@ function initDatabase() {
         name TEXT NOT NULL,
         api_url TEXT NOT NULL,
         api_key TEXT NOT NULL,
-        model TEXT DEFAULT 'gemini-3-pro-image-preview',
+        model TEXT DEFAULT 'gemini-2.5-pro-preview',
         is_default INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -190,6 +190,44 @@ function parseImageResponse(responseData) {
   return null;
 }
 
+// 从聊天响应中提取图片URL
+function extractImageFromChat(content) {
+  if (!content) return null;
+  
+  // Markdown 图片格式: ![alt](url)
+  const markdownMatch = content.match(/!\[.*?\]\((https?:\/\/[^\)]+)\)/);
+  if (markdownMatch) return markdownMatch[1];
+  
+  // 纯 URL 格式
+  const urlMatch = content.match(/(https?:\/\/[^\s"<]+)/);
+  if (urlMatch) return urlMatch[0];
+  
+  return null;
+}
+
+// ==================== 内置供应商配置 ====================
+
+const BUILT_IN_PROVIDERS = [
+  {
+    id: 't8star',
+    name: '贞贞的AI工坊',
+    description: '稳定的AI图像生成服务',
+    website: 'https://ai.t8star.cn/login',
+    baseUrl: 'https://ai.t8star.cn/v1',
+    models: ['gemini-2.5-pro-preview', 'gemini-2.5-flash-preview', 'nano-banana-2'],
+    defaultModel: 'gemini-2.5-pro-preview'
+  },
+  {
+    id: 'xheai',
+    name: '星核AI (xheai.cc)',
+    description: '高速稳定的Gemini图像服务',
+    website: 'https://api.xheai.cc/console/token',
+    baseUrl: 'https://api.xheai.cc/v1',
+    models: ['gemini-2.5-pro-preview', 'gemini-2.5-flash-preview', 'gemini-2.0-flash-exp-image-generation'],
+    defaultModel: 'gemini-2.5-pro-preview'
+  }
+];
+
 // ==================== 路由 ====================
 
 // 健康检查
@@ -201,19 +239,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 内置供应商配置
+// 获取供应商列表
 app.get('/api/providers', (req, res) => {
-  res.json([
-    {
-      id: 't8star',
-      name: '贞贞的AI工坊',
-      description: '稳定的AI图像生成服务',
-      website: 'https://ai.t8star.cn/login',
-      baseUrl: 'https://ai.t8star.cn/v1',
-      models: ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image-preview', 'nano-banana-2'],
-      defaultModel: 'gemini-3-pro-image-preview'
-    }
-  ]);
+  res.json(BUILT_IN_PROVIDERS);
 });
 
 // ==================== 认证接口 ====================
@@ -278,7 +306,7 @@ app.get('/api/user', requireAuth, (req, res) => {
     });
 });
 
-// ==================== API配置 ====================
+// ==================== API配置管理 ====================
 
 app.get('/api/user/apis', requireAuth, (req, res) => {
   db.all('SELECT * FROM api_configs WHERE user_id = ? ORDER BY is_default DESC, created_at DESC', 
@@ -309,7 +337,7 @@ app.post('/api/user/apis', requireAuth, (req, res) => {
     
     db.run(`INSERT INTO api_configs (user_id, provider_id, name, api_url, api_key, model, is_default) 
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userId, provider_id || 'custom', name, normalizedUrl, api_key, model || 'gemini-3-pro-image-preview', is_default ? 1 : 0],
+      [userId, provider_id || 'custom', name, normalizedUrl, api_key, model || 'gemini-2.5-pro-preview', is_default ? 1 : 0],
       function(err) {
         if (err) return res.status(500).json({ error: '保存失败' });
         res.json({ success: true, id: this.lastID });
@@ -327,9 +355,9 @@ app.delete('/api/user/apis/:id', requireAuth, (req, res) => {
     });
 });
 
-// ==================== 图像生成 ====================
+// ==================== 图像生成核心逻辑 ====================
 
-// 文生图 - 使用 /images/generations
+// 文生图 - 支持多模型自动重试
 app.post('/api/generate', requireAuth, async (req, res) => {
   const { prompt, size = '1024x1024' } = req.body;
   const userId = req.session.userId;
@@ -346,62 +374,85 @@ app.post('/api/generate', requireAuth, async (req, res) => {
   if (!config) return res.status(400).json({ error: '请先配置默认API' });
   if (!config.api_key) return res.status(400).json({ error: 'API Key为空' });
   
-  try {
-    const endpoints = getApiEndpoints(config.api_url);
-    const model = config.model || 'gemini-3-pro-image-preview';
+  const endpoints = getApiEndpoints(config.api_url);
+  
+  // 尝试的模型列表（按优先级）
+  const modelsToTry = [
+    config.model,
+    'gemini-2.5-pro-preview',
+    'gemini-2.5-flash-preview',
+    'nano-banana-2'
+  ].filter((v, i, a) => a.indexOf(v) === i); // 去重
+  
+  let lastError = null;
+  
+  for (const model of modelsToTry) {
+    if (!model) continue;
     
-    const requestBody = {
-      model: model,
-      prompt: prompt,
-      n: 1,
-      size: size
-    };
-    
-    console.log(`[文生图] 模型: ${model}, 端点: ${endpoints.generations}`);
-    
-    const response = await axios.post(
-      endpoints.generations,
-      requestBody,
-      {
-        headers: {
-          'Authorization': `Bearer ${config.api_key}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 120000
+    try {
+      console.log(`[文生图] 尝试模型: ${model}`);
+      
+      const requestBody = {
+        model: model,
+        prompt: prompt,
+        n: 1,
+        size: size
+      };
+      
+      const response = await axios.post(
+        endpoints.generations,
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${config.api_key}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 120000
+        }
+      );
+      
+      const imageUrl = parseImageResponse(response.data);
+      
+      if (imageUrl) {
+        console.log(`[文生图] 成功使用模型: ${model}`);
+        db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [userId, prompt, imageUrl, size, 'text2img', config.name, 'success']);
+        return res.json({ success: true, image_url: imageUrl, size, model });
       }
-    );
-    
-    const imageUrl = parseImageResponse(response.data);
-    
-    if (!imageUrl) {
-      throw new Error('无法解析API返回: ' + JSON.stringify(response.data));
+      
+    } catch (error) {
+      console.log(`[文生图] 模型 ${model} 失败:`, error.response?.data?.error?.message || error.message);
+      lastError = error;
+      
+      // 如果是模型不存在，继续尝试下一个
+      const errorMsg = error.response?.data?.error?.message || '';
+      if (errorMsg.includes('model') && errorMsg.includes('not found')) {
+        continue;
+      }
+      // 其他错误（如认证失败）直接中断
+      break;
     }
-    
-    db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [userId, prompt, imageUrl, size, 'text2img', config.name, 'success']);
-    
-    res.json({ success: true, image_url: imageUrl, size });
-  } catch (error) {
-    console.error('[文生图] 错误:', error.message);
-    const errorMsg = error.response?.data?.error?.message || error.message;
-    db.run('INSERT INTO generations (user_id, prompt, size, type, status, error_msg) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, prompt, size, 'text2img', 'failed', errorMsg]);
-    res.status(500).json({ error: '生成失败', detail: errorMsg });
   }
+  
+  // 所有模型都失败
+  const errorDetail = lastError?.response?.data?.error?.message || lastError?.message || '未知错误';
+  db.run('INSERT INTO generations (user_id, prompt, size, type, status, error_msg) VALUES (?, ?, ?, ?, ?, ?)',
+    [userId, prompt, size, 'text2img', 'failed', errorDetail]);
+  res.status(500).json({ error: '生成失败', detail: errorDetail });
 });
 
-// 图生图 - 使用 /chat/completions (Gemini Vision)
+// 图生图 - 使用 Chat Completions (Vision)
 app.post('/api/img2img', requireAuth, upload.array('images', 4), async (req, res) => {
   const { prompt, size = '1024x1024' } = req.body;
   const userId = req.session.userId;
   
   if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ error: '请上传至少一张图片' });
+    return res.status(400).json({ error: '请上传图片' });
   }
   
   const config = await new Promise((resolve) => {
     db.get('SELECT * FROM api_configs WHERE user_id = ? AND is_default = 1 LIMIT 1',
-      [userId], (err, row) => resolve(row));
+      [req.session.userId], (err, row) => resolve(row));
   });
   
   if (!config || !config.api_key) {
@@ -410,15 +461,14 @@ app.post('/api/img2img', requireAuth, upload.array('images', 4), async (req, res
   }
   
   try {
-    // 读取所有图片并转为 Base64
+    // 读取所有图片转为 Base64
     const imageContents = req.files.map(file => {
       const buffer = fs.readFileSync(file.path);
       const base64 = buffer.toString('base64');
-      const mimeType = file.mimetype || 'image/png';
       return {
         type: 'image_url',
         image_url: {
-          url: `data:${mimeType};base64,${base64}`
+          url: `data:${file.mimetype};base64,${base64}`
         }
       };
     });
@@ -426,85 +476,100 @@ app.post('/api/img2img', requireAuth, upload.array('images', 4), async (req, res
     // 清理上传文件
     req.files.forEach(f => fs.unlinkSync(f.path));
     
-    // 构建 OpenAI Vision 格式请求
     const endpoints = getApiEndpoints(config.api_url);
-    const model = 'gemini-3-pro-image-preview'; // 图生图必须用此模型
     
-    const requestBody = {
-      model: model,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            ...imageContents,
+    // 图生图尝试的模型（Gemini Vision 模型）
+    const visionModels = [
+      'gemini-2.5-pro-preview',
+      'gemini-2.5-flash-preview',
+      'gemini-2.0-flash-exp-image-generation',
+      'gpt-4o',
+      'gpt-4o-mini'
+    ];
+    
+    // 优先使用用户配置的模型，如果它包含在visionModels中
+    let modelsToTry = visionModels;
+    if (config.model && visionModels.includes(config.model)) {
+      modelsToTry = [config.model, ...visionModels.filter(m => m !== config.model)];
+    }
+    
+    let lastError = null;
+    
+    for (const model of modelsToTry) {
+      try {
+        console.log(`[图生图] 尝试模型: ${model}`);
+        
+        const requestBody = {
+          model: model,
+          messages: [
             {
-              type: 'text',
-              text: prompt || '根据参考图片生成新的图像，保持风格一致'
+              role: 'user',
+              content: [
+                ...imageContents,
+                {
+                  type: 'text',
+                  text: prompt || '根据参考图片生成新的图像，保持风格一致'
+                }
+              ]
             }
-          ]
+          ],
+          max_tokens: 4096,
+          temperature: 0.7
+        };
+        
+        const response = await axios.post(
+          endpoints.chat,
+          requestBody,
+          {
+            headers: {
+              'Authorization': `Bearer ${config.api_key}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 300000
+          }
+        );
+        
+        const content = response.data.choices?.[0]?.message?.content || '';
+        const imageUrl = extractImageFromChat(content);
+        
+        if (imageUrl) {
+          console.log(`[图生图] 成功使用模型: ${model}`);
+          db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [userId, prompt, imageUrl, size, 'img2img', config.name, 'success']);
+          return res.json({ success: true, image_url: imageUrl, model });
+        } else {
+          console.log(`[图生图] 模型 ${model} 返回内容:`, content.substring(0, 200));
         }
-      ],
-      max_tokens: 4096,
-      temperature: 0.7
-    };
-    
-    console.log(`[图生图] 模型: ${model}, 图片数: ${req.files.length}, 端点: ${endpoints.chat}`);
-    
-    const response = await axios.post(
-      endpoints.chat,
-      requestBody,
-      {
-        headers: {
-          'Authorization': `Bearer ${config.api_key}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 300000 // 5分钟超时
-      }
-    );
-    
-    console.log(`[图生图] 响应:`, JSON.stringify(response.data).substring(0, 300));
-    
-    // 解析图片 URL（从 content 中提取）
-    let imageUrl = null;
-    let content = '';
-    
-    if (response.data.choices && response.data.choices[0]) {
-      content = response.data.choices[0].message?.content || '';
-      
-      // 尝试提取 markdown 图片: ![](url)
-      const markdownMatch = content.match(/!\[.*?\]\((https?:\/\/[^\)]+)\)/);
-      if (markdownMatch) {
-        imageUrl = markdownMatch[1];
-      } else {
-        // 尝试提取纯 URL
-        const urlMatch = content.match(/(https?:\/\/[^\s"]+)/);
-        if (urlMatch) imageUrl = urlMatch[0];
+        
+      } catch (err) {
+        console.log(`[图生图] 模型 ${model} 失败:`, err.response?.data?.error?.message || err.message);
+        lastError = err;
+        
+        // 如果是模型不存在，继续尝试
+        const errorMsg = err.response?.data?.error?.message || '';
+        if (errorMsg.includes('model') && (errorMsg.includes('not found') || errorMsg.includes('does not exist'))) {
+          continue;
+        }
+        // 认证错误直接中断
+        if (err.response?.status === 401) break;
       }
     }
     
-    if (!imageUrl) {
-      throw new Error(`未能从响应中提取图片URL。响应内容: ${content.substring(0, 200)}`);
-    }
-    
-    db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [userId, prompt, imageUrl, size, 'img2img', config.name, 'success']);
-    
-    res.json({ success: true, image_url: imageUrl, model });
+    // 都失败了
+    throw lastError || new Error('所有模型均无法生成图像');
     
   } catch (error) {
     req.files.forEach(f => {
       try { fs.unlinkSync(f.path); } catch(e) {}
     });
-    console.error('[图生图] 错误:', error.message);
-    if (error.response) {
-      console.error('[图生图] 详情:', error.response.data);
-    }
+    
+    console.error('[图生图] 最终错误:', error.response?.data || error.message);
     const errorMsg = error.response?.data?.error?.message || error.message;
-    res.status(500).json({ error: '处理失败', detail: errorMsg });
+    res.status(500).json({ error: '图生图失败', detail: errorMsg });
   }
 });
 
-// 多图融合（复用图生图逻辑）
+// 多图融合
 app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, res) => {
   const { prompt, size = '1024x1024' } = req.body;
   const userId = req.session.userId;
@@ -515,7 +580,7 @@ app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, r
   
   const config = await new Promise((resolve) => {
     db.get('SELECT * FROM api_configs WHERE user_id = ? AND is_default = 1 LIMIT 1',
-      [userId], (err, row) => resolve(row));
+      [req.session.userId], (err, row) => resolve(row));
   });
   
   if (!config || !config.api_key) {
@@ -527,45 +592,32 @@ app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, r
     const imageContents = req.files.map(file => {
       const buffer = fs.readFileSync(file.path);
       const base64 = buffer.toString('base64');
-      const mimeType = file.mimetype || 'image/png';
       return {
         type: 'image_url',
-        image_url: {
-          url: `data:${mimeType};base64,${base64}`
-        }
+        image_url: { url: `data:${file.mimetype};base64,${base64}` }
       };
     });
     
     req.files.forEach(f => fs.unlinkSync(f.path));
     
     const endpoints = getApiEndpoints(config.api_url);
-    const model = 'gemini-3-pro-image-preview';
+    const model = 'gemini-2.5-pro-preview';
     
     const fusionPrompt = prompt || `融合这${req.files.length}张图片的元素，生成一张新图像`;
     
-    const requestBody = {
-      model: model,
-      messages: [
-        {
+    const response = await axios.post(
+      endpoints.chat,
+      {
+        model: model,
+        messages: [{
           role: 'user',
           content: [
             ...imageContents,
-            {
-              type: 'text',
-              text: fusionPrompt
-            }
+            { type: 'text', text: fusionPrompt }
           ]
-        }
-      ],
-      max_tokens: 4096,
-      temperature: 0.7
-    };
-    
-    console.log(`[多图融合] 使用图片数: ${req.files.length}`);
-    
-    const response = await axios.post(
-      endpoints.chat,
-      requestBody,
+        }],
+        max_tokens: 4096
+      },
       {
         headers: {
           'Authorization': `Bearer ${config.api_key}`,
@@ -575,19 +627,10 @@ app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, r
       }
     );
     
-    let imageUrl = null;
     const content = response.data.choices?.[0]?.message?.content || '';
-    const markdownMatch = content.match(/!\[.*?\]\((https?:\/\/[^\)]+)\)/);
-    if (markdownMatch) {
-      imageUrl = markdownMatch[1];
-    } else {
-      const urlMatch = content.match(/(https?:\/\/[^\s"]+)/);
-      if (urlMatch) imageUrl = urlMatch[0];
-    }
+    const imageUrl = extractImageFromChat(content);
     
-    if (!imageUrl) {
-      throw new Error('未能提取图片URL');
-    }
+    if (!imageUrl) throw new Error('未能提取图片URL');
     
     db.run('INSERT INTO generations (user_id, prompt, image_url, size, type, provider, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [userId, prompt, imageUrl, size, 'multi-ref', config.name, 'success']);
@@ -599,12 +642,11 @@ app.post('/api/multi-ref', requireAuth, upload.array('images', 4), async (req, r
       try { fs.unlinkSync(f.path); } catch(e) {}
     });
     console.error('[多图融合] 错误:', error.message);
-    const errorMsg = error.response?.data?.error?.message || error.message;
-    res.status(500).json({ error: '融合失败', detail: errorMsg });
+    res.status(500).json({ error: '融合失败', detail: error.response?.data?.error?.message || error.message });
   }
 });
 
-// ==================== 历史记录 ====================
+// ==================== 历史记录与管理 ====================
 
 app.get('/api/history', requireAuth, (req, res) => {
   const { page = 1, limit = 20 } = req.query;
@@ -627,8 +669,6 @@ app.delete('/api/history/:id', requireAuth, (req, res) => {
       res.json({ success: true });
     });
 });
-
-// ==================== 管理员接口 ====================
 
 app.get('/api/admin/users', requireAdmin, (req, res) => {
   db.all(`SELECT u.id, u.email, u.role, u.created_at, COUNT(g.id) as total_generations
@@ -654,7 +694,7 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
   });
 });
 
-// 错误处理中间件
+// 错误处理
 app.use((err, req, res, next) => {
   console.error('服务器错误:', err);
   if (err instanceof multer.MulterError) {
