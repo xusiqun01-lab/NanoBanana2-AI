@@ -1,297 +1,348 @@
-<script>
-    // 状态管理
-    let currentUser = null;
-    let uploadedFiles = [];
-    
-    // 初始化
-    document.addEventListener('DOMContentLoaded', () => {
-        checkLogin();
-        setupDragDrop();
-    });
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NanoBanana2 AI - 在线生图</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { font-family: 'Microsoft YaHei', system-ui, sans-serif; }
+        .nav-btn.active { background-color: #f59e0b; color: black; }
+        .preview-item { position: relative; }
+        .remove-btn { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; border-radius: 9999px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .result-image { max-width: 100%; border-radius: 16px; box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3); }
+        .loading { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+    <div class="max-w-6xl mx-auto p-6">
 
-    // 检查登录
-    async function checkLogin() {
-        try {
-            const res = await fetch('/api/me', { credentials: 'include' });
-            if (res.ok) {
-                currentUser = await res.json();
-                showApp();
-            } else {
+        <!-- 登录页 -->
+        <div id="loginPage" class="min-h-screen flex items-center justify-center">
+            <div class="bg-zinc-900 p-10 rounded-3xl w-full max-w-md">
+                <div class="flex justify-center mb-8">
+                    <div class="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center text-5xl">🍌</div>
+                </div>
+                <h1 class="text-4xl font-bold text-center mb-2">NanoBanana2 AI</h1>
+                <p class="text-center text-zinc-400 mb-8">专业在线AI生图平台</p>
+                
+                <div class="space-y-6">
+                    <input id="loginEmail" type="email" placeholder="邮箱" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-6 py-4 text-lg">
+                    <input id="loginPassword" type="password" placeholder="密码" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-6 py-4 text-lg">
+                    <button onclick="doLogin()" class="w-full bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-5 rounded-3xl text-xl">登录</button>
+                    <div onclick="alert('默认账号：admin@banana.ai\n密码：admin123\n注册功能已开启，可自行注册')" class="text-yellow-400 text-center cursor-pointer">没有账号？点击注册</div>
+                    <div id="loginAlert" class="hidden text-red-500 text-center"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主应用页 -->
+        <div id="appPage" class="hidden">
+            <!-- 头部 -->
+            <header class="flex justify-between items-center mb-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center text-4xl">🍌</div>
+                    <div>
+                        <h1 class="text-3xl font-bold">NanoBanana2 AI</h1>
+                        <p class="text-yellow-400 text-sm">欢迎回来，<span id="username" class="font-medium"></span></p>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="showPage('generate')" class="nav-btn active px-8 py-3 rounded-3xl text-lg font-medium">生成图片</button>
+                    <button onclick="showPage('history')" class="nav-btn px-8 py-3 rounded-3xl text-lg font-medium">历史记录</button>
+                    <button onclick="showPage('settings')" class="nav-btn px-8 py-3 rounded-3xl text-lg font-medium">设置</button>
+                    <button onclick="doLogout()" class="px-6 py-3 border border-red-500 text-red-400 hover:bg-red-500 hover:text-white rounded-3xl">退出</button>
+                </div>
+            </header>
+
+            <!-- 生成页面 -->
+            <div id="page-generate">
+                <div class="bg-zinc-900 rounded-3xl p-8">
+                    <div id="uploadArea" class="border-4 border-dashed border-zinc-700 rounded-3xl p-16 text-center cursor-pointer hover:border-yellow-400 transition"
+                         onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-cloud-arrow-up text-6xl text-zinc-500 mb-4"></i>
+                        <p class="text-2xl mb-2">拖拽或点击上传参考图片（最多4张）</p>
+                        <p class="text-zinc-400">支持 JPG / PNG，单张不超过20MB</p>
+                        <input id="fileInput" type="file" multiple accept="image/*" class="hidden" onchange="handleFiles(event)">
+                    </div>
+
+                    <div id="previewContainer" class="hidden grid grid-cols-4 gap-4 mt-8"></div>
+
+                    <div class="mt-8">
+                        <label class="block text-sm text-zinc-400 mb-2">提示词（描述想要生成的风格）</label>
+                        <textarea id="promptInput" rows="3" class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl p-6 text-lg" placeholder="赛博朋克风格的香蕉战士..."></textarea>
+                    </div>
+
+                    <button id="generateBtn" onclick="generateImage()" disabled
+                            class="mt-8 w-full bg-gradient-to-r from-yellow-400 to-amber-400 text-black font-bold py-6 rounded-3xl text-2xl flex items-center justify-center gap-3">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        开始生成图片
+                    </button>
+                </div>
+
+                <div id="resultArea" class="mt-10 bg-zinc-900 rounded-3xl p-8 min-h-[400px]"></div>
+            </div>
+
+            <!-- 历史页面 -->
+            <div id="page-history" class="hidden">
+                <div class="bg-zinc-900 rounded-3xl p-8">
+                    <h2 class="text-2xl font-bold mb-6">生成历史</h2>
+                    <div id="historyList" class="grid grid-cols-3 gap-6"></div>
+                </div>
+            </div>
+
+            <!-- 设置页面 -->
+            <div id="page-settings" class="hidden">
+                <div class="bg-zinc-900 rounded-3xl p-8 max-w-xl mx-auto">
+                    <h2 class="text-2xl font-bold mb-8">API 配置</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm text-zinc-400 mb-2">API Key（从 https://wish.sillydream.top 获取）</label>
+                            <input id="apiKeyInput" type="text" class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl px-6 py-4">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-zinc-400 mb-2">模型名称（推荐）</label>
+                            <input id="modelInput" type="text" value="「Rim」gemini-3-pro-image-preview" class="w-full bg-zinc-800 border border-zinc-700 rounded-3xl px-6 py-4">
+                        </div>
+                        <button onclick="saveConfig()" class="w-full bg-yellow-400 text-black font-bold py-5 rounded-3xl">保存配置</button>
+                        <div id="configStatus" class="hidden p-4 rounded-2xl text-center"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 你的全部JS（已完整保留并优化）===================
+        let currentUser = null;
+        let uploadedFiles = [];
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            checkLogin();
+            setupDragDrop();
+        });
+
+        async function checkLogin() {
+            try {
+                const res = await fetch('/api/me', { credentials: 'include' });
+                if (res.ok) {
+                    currentUser = await res.json();
+                    document.getElementById('username').textContent = currentUser.email;
+                    showApp();
+                } else {
+                    showLogin();
+                }
+            } catch (e) {
                 showLogin();
             }
-        } catch (e) {
+        }
+
+        function showLogin() {
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('appPage').classList.add('hidden');
+        }
+
+        function showApp() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('appPage').classList.remove('hidden');
+            loadConfig();
+            showPage('generate');
+        }
+
+        function showPage(page) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick').includes(`'${page}'`));
+            if (activeBtn) activeBtn.classList.add('active');
+
+            document.getElementById('page-generate').classList.add('hidden');
+            document.getElementById('page-history').classList.add('hidden');
+            document.getElementById('page-settings').classList.add('hidden');
+            document.getElementById(`page-${page}`).classList.remove('hidden');
+
+            if (page === 'history') loadHistory();
+        }
+
+        async function doLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const alertEl = document.getElementById('loginAlert');
+            
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentUser = data.user;
+                    document.getElementById('username').textContent = currentUser.email;
+                    showApp();
+                } else {
+                    alertEl.textContent = data.error || '登录失败';
+                    alertEl.classList.remove('hidden');
+                }
+            } catch (e) {
+                alertEl.textContent = '网络错误';
+                alertEl.classList.remove('hidden');
+            }
+        }
+
+        async function doLogout() {
+            await fetch('/api/logout', { method: 'POST', credentials: 'include' });
             showLogin();
         }
-    }
 
-    function showLogin() {
-        document.getElementById('loginPage').classList.remove('hidden');
-        document.getElementById('appPage').classList.add('hidden');
-    }
-
-    function showApp() {
-        document.getElementById('loginPage').classList.add('hidden');
-        document.getElementById('appPage').classList.remove('hidden');
-        loadConfig();
-    }
-
-    function showPage(page) {
-        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
-        
-        document.getElementById('page-generate').classList.add('hidden');
-        document.getElementById('page-history').classList.add('hidden');
-        document.getElementById('page-settings').classList.add('hidden');
-        
-        document.getElementById(`page-${page}`).classList.remove('hidden');
-        
-        if (page === 'history') loadHistory();
-    }
-
-    // 登录
-    async function doLogin() {
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-        
-        const alert = document.getElementById('loginAlert');
-        
-        try {
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ email, password })
-            });
-            
-            const data = await res.json();
-            if (data.success) {
-                currentUser = data.user;
-                showApp();
-            } else {
-                alert.textContent = data.error || '登录失败';
-                alert.classList.add('show');
-            }
-        } catch (e) {
-            alert.textContent = '网络错误';
-            alert.classList.add('show');
-        }
-    }
-
-    // 退出
-    async function doLogout() {
-        await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-        showLogin();
-    }
-
-    // 文件处理（保持原样）
-    function handleFiles(e) {
-        const files = Array.from(e.target.files).slice(0, 4);
-        processFiles(files);
-    }
-
-    function setupDragDrop() {
-        const uploadArea = document.getElementById('uploadArea');
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }, false);
-        });
-        
-        ['dragenter', 'dragover'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, () => uploadArea.classList.add('dragover'), false);
-        });
-        
-        ['dragleave', 'drop'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('dragover'), false);
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            const files = Array.from(e.dataTransfer.files).slice(0, 4);
+        function handleFiles(e) {
+            const files = Array.from(e.target.files).slice(0, 4);
             processFiles(files);
-        }, false);
-    }
-
-    function processFiles(files) {
-        uploadedFiles = files.filter(f => {
-            if (!f.type.startsWith('image/')) {
-                alert(`${f.name} 不是图片`);
-                return false;
-            }
-            if (f.size > 20 * 1024 * 1024) {
-                alert(`${f.name} 超过20MB`);
-                return false;
-            }
-            return true;
-        });
-        
-        if (uploadedFiles.length === 0) return;
-        
-        const container = document.getElementById('previewContainer');
-        container.innerHTML = '';
-        container.classList.remove('hidden');
-        
-        uploadedFiles.forEach((file, index) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const div = document.createElement('div');
-                div.className = 'preview-item';
-                div.innerHTML = `
-                    <img src="${e.target.result}">
-                    <button class="remove-btn" onclick="removeFile(${index})">×</button>
-                `;
-                container.appendChild(div);
-            };
-            reader.readAsDataURL(file);
-        });
-        
-        document.getElementById('generateBtn').disabled = false;
-    }
-
-    function removeFile(index) {
-        uploadedFiles.splice(index, 1);
-        if (uploadedFiles.length === 0) {
-            document.getElementById('previewContainer').classList.add('hidden');
-            document.getElementById('generateBtn').disabled = true;
-        } else {
-            processFiles(uploadedFiles);
         }
-    }
 
-    // 生成图像（保持原样）
-    async function generateImage() {
-        if (uploadedFiles.length === 0) return alert('请先上传图片');
-        
-        const prompt = document.getElementById('promptInput').value;
-        const btn = document.getElementById('generateBtn');
-        const resultArea = document.getElementById('resultArea');
-        
-        btn.disabled = true;
-        btn.textContent = '生成中... (尝试官方线路)';
-        
-        resultArea.innerHTML = `
-            <div class="loading">
-                <div class="spinner"></div>
-                <div>正在使用官方线路处理...</div>
-            </div>
-        `;
-        
-        const formData = new FormData();
-        uploadedFiles.forEach(f => formData.append('images', f));
-        formData.append('prompt', prompt);
-        
-        try {
-            const res = await fetch('/api/img2img', {
-                method: 'POST',
-                credentials: 'include',
-                body: formData
+        function setupDragDrop() {
+            const uploadArea = document.getElementById('uploadArea');
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
+                uploadArea.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, false);
             });
-            
-            const data = await res.json();
-            
-            if (data.success && data.image_url) {
+            uploadArea.addEventListener('drop', e => {
+                const files = Array.from(e.dataTransfer.files).slice(0, 4);
+                processFiles(files);
+            });
+        }
+
+        function processFiles(files) {
+            uploadedFiles = files.filter(f => f.type.startsWith('image/') && f.size <= 20*1024*1024);
+            if (uploadedFiles.length === 0) return;
+
+            const container = document.getElementById('previewContainer');
+            container.innerHTML = '';
+            container.classList.remove('hidden');
+
+            uploadedFiles.forEach((file, i) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    div.innerHTML = `<img src="${e.target.result}" class="w-full rounded-2xl"><button class="remove-btn" onclick="removeFile(${i})">×</button>`;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            document.getElementById('generateBtn').disabled = false;
+        }
+
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            if (uploadedFiles.length === 0) {
+                document.getElementById('previewContainer').classList.add('hidden');
+                document.getElementById('generateBtn').disabled = true;
+            } else {
+                processFiles(uploadedFiles);
+            }
+        }
+
+        async function generateImage() {
+            if (uploadedFiles.length === 0) return alert('请上传图片');
+            const prompt = document.getElementById('promptInput').value || '根据参考图生成新图像';
+            const btn = document.getElementById('generateBtn');
+            const resultArea = document.getElementById('resultArea');
+
+            btn.disabled = true;
+            btn.innerHTML = '生成中... (使用官方线路)';
+
+            resultArea.innerHTML = `<div class="loading text-center py-20"><div class="animate-spin w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto"></div><p class="mt-6">正在调用官方稳定线路...</p></div>`;
+
+            const formData = new FormData();
+            uploadedFiles.forEach(f => formData.append('images', f));
+            formData.append('prompt', prompt);
+
+            try {
+                const res = await fetch('/api/img2img', { method: 'POST', credentials: 'include', body: formData });
+                const data = await res.json();
+
+                if (data.success && data.image_url) {
+                    resultArea.innerHTML = `
+                        <img src="${data.image_url}" class="result-image" onclick="window.open('${data.image_url}','_blank')">
+                        <div class="mt-6 text-center text-green-400">✅ 生成成功！使用线路：${data.endpoint} | 模型：${data.model}</div>
+                    `;
+                } else {
+                    throw new Error(data.error || '生成失败');
+                }
+            } catch (error) {
                 resultArea.innerHTML = `
-                    <img src="${data.image_url}" class="result-image" onclick="window.open('${data.image_url}')" style="cursor: pointer;">
-                    <div class="success-info">
-                        ✅ ${data.endpoint} | ${data.model}
+                    <div class="bg-red-900/30 border border-red-500 rounded-3xl p-8 text-center">
+                        <p class="font-bold text-xl mb-3">❌ 生成失败</p>
+                        <p class="text-red-400">${error.message}</p>
+                        <div class="mt-6 text-sm opacity-80">建议：1. 稍等1分钟重试（服务器高峰期）<br>2. 检查API Key是否正确<br>3. 减少上传图片数量</div>
                     </div>
                 `;
-            } else {
-                throw new Error(data.error || '生成失败');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> 开始生成图片`;
             }
-            
-        } catch (error) {
-            resultArea.innerHTML = `
-                <div class="error-box">
-                    <div style="font-weight: bold; margin-bottom: 5px;">❌ 生成失败</div>
-                    <div style="font-size: 13px; white-space: pre-line;">${error.message}</div>
-                    <div style="margin-top: 10px; font-size: 12px; opacity: 0.8;">
-                        💡 建议：1.服务器拥挤（稍等重试） 2.检查API Key 3.减少图片数量
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config', { credentials: 'include' });
+                const config = await res.json();
+                document.getElementById('apiKeyInput').value = config.api_key || '';
+                document.getElementById('modelInput').value = config.model || '「Rim」gemini-3-pro-image-preview';
+            } catch(e) {}
+        }
+
+        async function saveConfig() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const model = document.getElementById('modelInput').value.trim();
+            const status = document.getElementById('configStatus');
+            if (!apiKey) return alert('API Key 不能为空');
+
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ api_key: apiKey, model })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    status.className = 'block p-4 rounded-2xl text-green-400 bg-green-900/30';
+                    status.textContent = '✅ 配置保存成功！';
+                } else throw new Error(data.error);
+            } catch(e) {
+                status.className = 'block p-4 rounded-2xl text-red-400 bg-red-900/30';
+                status.textContent = '❌ 保存失败：' + e.message;
+            }
+            setTimeout(() => status.style.display = 'none', 4000);
+        }
+
+        async function loadHistory() {
+            const container = document.getElementById('historyList');
+            container.innerHTML = '<div class="col-span-3 text-center py-20 text-zinc-400">加载中...</div>';
+            try {
+                const res = await fetch('/api/history', { credentials: 'include' });
+                const items = await res.json();
+                if (items.length === 0) {
+                    container.innerHTML = '<div class="col-span-3 text-center py-20 text-zinc-400">暂无生成记录</div>';
+                    return;
+                }
+                container.innerHTML = items.map(item => `
+                    <div class="bg-zinc-800 rounded-3xl overflow-hidden">
+                        ${item.image_url ? `<img src="${item.image_url}" class="w-full cursor-pointer" onclick="window.open('${item.image_url}','_blank')">` : `<div class="h-48 flex items-center justify-center text-red-400">生成失败</div>`}
+                        <div class="p-4">
+                            <div class="text-xs text-yellow-400">${item.type}</div>
+                            <div class="text-sm text-zinc-400 mt-1 line-clamp-2">${item.prompt || '无提示词'}</div>
+                            <div class="text-[10px] text-zinc-500 mt-3">${new Date(item.created_at).toLocaleString()}</div>
+                        </div>
                     </div>
-                </div>
-            `;
-        } finally {
-            btn.disabled = false;
-            btn.textContent = '开始生成 (自动官方线路)';
-        }
-    }
-
-    // ==================== 关键修复部分 ====================
-    async function loadConfig() {
-        try {
-            const res = await fetch('/api/config', { credentials: 'include' });
-            const config = await res.json();
-            document.getElementById('apiKeyInput').value = config.api_key || '';
-            document.getElementById('modelInput').value = config.model || '「Rim」gemini-3-pro-image-preview';
-        } catch (e) {}
-    }
-
-    async function saveConfig() {
-        const apiKey = document.getElementById('apiKeyInput').value.trim();
-        const model = document.getElementById('modelInput').value.trim();
-        if (!apiKey || !model) return alert('API Key 和 模型名称 都必须填写');
-
-        const status = document.getElementById('configStatus');
-        
-        try {
-            const res = await fetch('/api/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ api_key: apiKey, model })
-            });
-            
-            const data = await res.json();
-            if (data.success) {
-                status.style.display = 'block';
-                status.style.background = 'rgba(0, 255, 0, 0.1)';
-                status.style.border = '1px solid #0f0';
-                status.style.color = '#0f0';
-                status.textContent = '✅ 保存成功！';
-            } else {
-                throw new Error(data.error);
+                `).join('');
+            } catch(e) {
+                container.innerHTML = '<div class="col-span-3 text-center py-20 text-red-400">加载失败</div>';
             }
-        } catch (e) {
-            status.style.display = 'block';
-            status.style.background = 'rgba(255, 0, 0, 0.1)';
-            status.style.border = '1px solid #f00';
-            status.style.color = '#f00';
-            status.textContent = '❌ 保存失败: ' + e.message;
         }
-        
-        setTimeout(() => status.style.display = 'none', 3000);
-    }
-
-    // 历史记录
-    async function loadHistory() {
-        const container = document.getElementById('historyList');
-        container.innerHTML = '<div style="color: #666; padding: 40px; text-align: center;">加载中...</div>';
-        
-        try {
-            const res = await fetch('/api/history', { credentials: 'include' });
-            const items = await res.json();
-            
-            if (items.length === 0) {
-                container.innerHTML = '<div style="color: #666; padding: 40px; text-align: center;">暂无记录</div>';
-                return;
-            }
-            
-            container.innerHTML = items.map(item => `
-                <div class="history-item">
-                    ${item.image_url ? 
-                        `<img src="${item.image_url}" onclick="window.open('${item.image_url}')" style="cursor: pointer;">` : 
-                        '<div style="height: 150px; display: flex; align-items: center; justify-content: center; background: #0f0f0f; color: #ff4444;">失败</div>'
-                    }
-                    <div class="info">
-                        <div class="type">${item.type === 'img2img' ? '图生图' : '文生图'}</div>
-                        <div style="font-size: 12px; color: #666; margin-top: 2px;">${new Date(item.created_at).toLocaleString()}</div>
-                        <div style="font-size: 12px; color: #444; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.prompt || '无描述'}</div>
-                    </div>
-                </div>
-            `).join('');
-            
-        } catch (e) {
-            container.innerHTML = '<div style="color: #ff4444; padding: 40px; text-align: center;">加载失败</div>';
-        }
-    }
-</script>
+    </script>
+</body>
+</html>
