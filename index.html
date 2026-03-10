@@ -1,38 +1,297 @@
-<!-- 设置页面 -->
-<div id="page-settings" class="hidden">
-    <div class="panel settings-form">
-        <div class="panel-title">API 配置</div>
+<script>
+    // 状态管理
+    let currentUser = null;
+    let uploadedFiles = [];
+    
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+        checkLogin();
+        setupDragDrop();
+    });
+
+    // 检查登录
+    async function checkLogin() {
+        try {
+            const res = await fetch('/api/me', { credentials: 'include' });
+            if (res.ok) {
+                currentUser = await res.json();
+                showApp();
+            } else {
+                showLogin();
+            }
+        } catch (e) {
+            showLogin();
+        }
+    }
+
+    function showLogin() {
+        document.getElementById('loginPage').classList.remove('hidden');
+        document.getElementById('appPage').classList.add('hidden');
+    }
+
+    function showApp() {
+        document.getElementById('loginPage').classList.add('hidden');
+        document.getElementById('appPage').classList.remove('hidden');
+        loadConfig();
+    }
+
+    function showPage(page) {
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
         
-        <div class="form-group">
-            <label class="form-label">API Key</label>
-            <input type="password" id="apiKeyInput" class="form-input" placeholder="sk-...">
-            <div class="help-text">
-                从 <a href="https://wish.sillydream.top/console/token" target="_blank" style="color: #f5a623;">这里获取/查看你的 API Key</a><br>
-                （登录后直接复制 sk- 开头的 Key）
+        document.getElementById('page-generate').classList.add('hidden');
+        document.getElementById('page-history').classList.add('hidden');
+        document.getElementById('page-settings').classList.add('hidden');
+        
+        document.getElementById(`page-${page}`).classList.remove('hidden');
+        
+        if (page === 'history') loadHistory();
+    }
+
+    // 登录
+    async function doLogin() {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        const alert = document.getElementById('loginAlert');
+        
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, password })
+            });
+            
+            const data = await res.json();
+            if (data.success) {
+                currentUser = data.user;
+                showApp();
+            } else {
+                alert.textContent = data.error || '登录失败';
+                alert.classList.add('show');
+            }
+        } catch (e) {
+            alert.textContent = '网络错误';
+            alert.classList.add('show');
+        }
+    }
+
+    // 退出
+    async function doLogout() {
+        await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+        showLogin();
+    }
+
+    // 文件处理（保持原样）
+    function handleFiles(e) {
+        const files = Array.from(e.target.files).slice(0, 4);
+        processFiles(files);
+    }
+
+    function setupDragDrop() {
+        const uploadArea = document.getElementById('uploadArea');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.add('dragover'), false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('dragover'), false);
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            const files = Array.from(e.dataTransfer.files).slice(0, 4);
+            processFiles(files);
+        }, false);
+    }
+
+    function processFiles(files) {
+        uploadedFiles = files.filter(f => {
+            if (!f.type.startsWith('image/')) {
+                alert(`${f.name} 不是图片`);
+                return false;
+            }
+            if (f.size > 20 * 1024 * 1024) {
+                alert(`${f.name} 超过20MB`);
+                return false;
+            }
+            return true;
+        });
+        
+        if (uploadedFiles.length === 0) return;
+        
+        const container = document.getElementById('previewContainer');
+        container.innerHTML = '';
+        container.classList.remove('hidden');
+        
+        uploadedFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const div = document.createElement('div');
+                div.className = 'preview-item';
+                div.innerHTML = `
+                    <img src="${e.target.result}">
+                    <button class="remove-btn" onclick="removeFile(${index})">×</button>
+                `;
+                container.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        document.getElementById('generateBtn').disabled = false;
+    }
+
+    function removeFile(index) {
+        uploadedFiles.splice(index, 1);
+        if (uploadedFiles.length === 0) {
+            document.getElementById('previewContainer').classList.add('hidden');
+            document.getElementById('generateBtn').disabled = true;
+        } else {
+            processFiles(uploadedFiles);
+        }
+    }
+
+    // 生成图像（保持原样）
+    async function generateImage() {
+        if (uploadedFiles.length === 0) return alert('请先上传图片');
+        
+        const prompt = document.getElementById('promptInput').value;
+        const btn = document.getElementById('generateBtn');
+        const resultArea = document.getElementById('resultArea');
+        
+        btn.disabled = true;
+        btn.textContent = '生成中... (尝试官方线路)';
+        
+        resultArea.innerHTML = `
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>正在使用官方线路处理...</div>
             </div>
-        </div>
+        `;
         
-        <div class="form-group">
-            <label class="form-label">模型名称（必填）</label>
-            <input type="text" id="modelInput" class="form-input" value="「Rim」gemini-3-pro-image-preview">
-            <div class="help-text">
-                推荐：香蕉2 「Rim」gemini-3-pro-image-preview（2K，白图率最低）
-            </div>
-        </div>
+        const formData = new FormData();
+        uploadedFiles.forEach(f => formData.append('images', f));
+        formData.append('prompt', prompt);
         
-        <div class="form-group">
-            <label class="form-label">当前线路</label>
-            <div class="form-input" style="background: #0f0f0f; border-color: #333; color: #f5a623;">
-                官方稳定线路（https://f.sillydream.top）
-            </div>
-            <div class="help-text">
-                自动使用官方统一网关，已支持图生图 + Gemini 模型<br>
-                旧IP已失效，无需再填
-            </div>
-        </div>
+        try {
+            const res = await fetch('/api/img2img', {
+                method: 'POST',
+                credentials: 'include',
+                body: formData
+            });
+            
+            const data = await res.json();
+            
+            if (data.success && data.image_url) {
+                resultArea.innerHTML = `
+                    <img src="${data.image_url}" class="result-image" onclick="window.open('${data.image_url}')" style="cursor: pointer;">
+                    <div class="success-info">
+                        ✅ ${data.endpoint} | ${data.model}
+                    </div>
+                `;
+            } else {
+                throw new Error(data.error || '生成失败');
+            }
+            
+        } catch (error) {
+            resultArea.innerHTML = `
+                <div class="error-box">
+                    <div style="font-weight: bold; margin-bottom: 5px;">❌ 生成失败</div>
+                    <div style="font-size: 13px; white-space: pre-line;">${error.message}</div>
+                    <div style="margin-top: 10px; font-size: 12px; opacity: 0.8;">
+                        💡 建议：1.服务器拥挤（稍等重试） 2.检查API Key 3.减少图片数量
+                    </div>
+                </div>
+            `;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '开始生成 (自动官方线路)';
+        }
+    }
+
+    // ==================== 关键修复部分 ====================
+    async function loadConfig() {
+        try {
+            const res = await fetch('/api/config', { credentials: 'include' });
+            const config = await res.json();
+            document.getElementById('apiKeyInput').value = config.api_key || '';
+            document.getElementById('modelInput').value = config.model || '「Rim」gemini-3-pro-image-preview';
+        } catch (e) {}
+    }
+
+    async function saveConfig() {
+        const apiKey = document.getElementById('apiKeyInput').value.trim();
+        const model = document.getElementById('modelInput').value.trim();
+        if (!apiKey || !model) return alert('API Key 和 模型名称 都必须填写');
+
+        const status = document.getElementById('configStatus');
         
-        <button class="btn-primary" onclick="saveConfig()">保存配置</button>
+        try {
+            const res = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ api_key: apiKey, model })
+            });
+            
+            const data = await res.json();
+            if (data.success) {
+                status.style.display = 'block';
+                status.style.background = 'rgba(0, 255, 0, 0.1)';
+                status.style.border = '1px solid #0f0';
+                status.style.color = '#0f0';
+                status.textContent = '✅ 保存成功！';
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (e) {
+            status.style.display = 'block';
+            status.style.background = 'rgba(255, 0, 0, 0.1)';
+            status.style.border = '1px solid #f00';
+            status.style.color = '#f00';
+            status.textContent = '❌ 保存失败: ' + e.message;
+        }
         
-        <div id="configStatus" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;"></div>
-    </div>
-</div>
+        setTimeout(() => status.style.display = 'none', 3000);
+    }
+
+    // 历史记录
+    async function loadHistory() {
+        const container = document.getElementById('historyList');
+        container.innerHTML = '<div style="color: #666; padding: 40px; text-align: center;">加载中...</div>';
+        
+        try {
+            const res = await fetch('/api/history', { credentials: 'include' });
+            const items = await res.json();
+            
+            if (items.length === 0) {
+                container.innerHTML = '<div style="color: #666; padding: 40px; text-align: center;">暂无记录</div>';
+                return;
+            }
+            
+            container.innerHTML = items.map(item => `
+                <div class="history-item">
+                    ${item.image_url ? 
+                        `<img src="${item.image_url}" onclick="window.open('${item.image_url}')" style="cursor: pointer;">` : 
+                        '<div style="height: 150px; display: flex; align-items: center; justify-content: center; background: #0f0f0f; color: #ff4444;">失败</div>'
+                    }
+                    <div class="info">
+                        <div class="type">${item.type === 'img2img' ? '图生图' : '文生图'}</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 2px;">${new Date(item.created_at).toLocaleString()}</div>
+                        <div style="font-size: 12px; color: #444; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.prompt || '无描述'}</div>
+                    </div>
+                </div>
+            `).join('');
+            
+        } catch (e) {
+            container.innerHTML = '<div style="color: #ff4444; padding: 40px; text-align: center;">加载失败</div>';
+        }
+    }
+</script>
